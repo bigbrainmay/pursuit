@@ -1,4 +1,10 @@
 # load region files 
+from pathlib import Path
+import scipy.io as sio
+import pandas as pd
+import numpy as np
+import matplotlib as plt
+
 def load_region_files(data_dir: Path, suffix: str):
     region_mats = {}
     for file in data_dir.glob(f"*{suffix}"):
@@ -19,7 +25,3 @@ def get_first_element(x):
     first_value = x.iloc[0]
     return first_value[0] if isinstance(first_value, (list, tuple, pd.Series)) else first_value
     
-start_end_indices = ca1_region_directory.groupby("sessFile").agg({
-    "Pursuit_start": get_first_element,
-    "Pursuit_end": get_first_element
-}).reset_index()
