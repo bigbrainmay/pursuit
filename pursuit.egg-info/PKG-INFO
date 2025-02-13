@@ -1,0 +1,15 @@
+Metadata-Version: 2.2
+Name: pursuit
+Version: 0.0.1
+Summary: tools for reading pursuit expriment data
+Home-page: https://github.com/bigbrainmay/pursuit
+Author-email: bigbrainmay@gmail.com
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.6
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: home-page
+Dynamic: requires-python
+Dynamic: summary
