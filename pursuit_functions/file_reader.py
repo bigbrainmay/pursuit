@@ -81,8 +81,4 @@ def load_session_files (data_dir: Path, suffix: str = 'pursuitRoot.mat', ignore_
         
     return pursuit_matrices
 
-#getting the start and end indices for pursuit trials
-def get_first_element(x):
-    first_value = x.iloc[0]
-    return first_value[0] if isinstance(first_value, (list, tuple, pd.Series)) else first_value
-    
+
