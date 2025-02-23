@@ -1,0 +1,56 @@
+Metadata-Version: 2.2
+Name: pursuit
+Version: 0.0.1
+Summary: Tools for analyzing pursuit experiment data
+Author-email: bigbrainmay <bigbrainmay@gmail.com>
+License: MIT
+Project-URL: Homepage, https://github.com/bigbrainmay/pursuit
+Requires-Python: ==3.12.9
+Description-Content-Type: text/markdown
+Requires-Dist: jupyterlab==4.3.5
+Requires-Dist: pathlib==1.0.1
+Requires-Dist: scipy==1.15.1
+Requires-Dist: pandas==2.2.3
+Requires-Dist: numpy==2.2.2
+Requires-Dist: matplotlib==3.10.0
+
+# Pursuit Project
+
+# Installation Instructions
+
+1. Install Conda
+2. Clone pursuit repository from here: https://github.com/bigbrainmay/pursuit.git 
+3. Create Conda environment:
+```bash
+
+conda create --name <my-env> python=3.12.9
+conda activate <my-env>
+
+```
+4. Activate Conda environment:
+```bash
+
+conda activate myenv
+
+```
+5. Navigate to the directory where the GitHub repo is cloned
+```bash
+
+cd path/to/repo
+
+```
+6. Install dependencies from pyprojet.toml:
+```bash
+
+pip install .
+
+```
+
+...
+
+
+# TODOs
+
+- [ ] Figure out what analyses we want to do
+- [ ] Figure out subset of files we should be working with
+- [ ] Do the analyses
