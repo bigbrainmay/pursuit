@@ -3,11 +3,11 @@
 # Installation Instructions
 
 1. Install Conda
-2. Clone pursuit repository
+2. Clone pursuit repository from here: https://github.com/bigbrainmay/pursuit.git 
 3. Create Conda environment:
 ```bash
 
-conda create --name <my-env>
+conda create --name <my-env> python=3.12.9
 conda activate <my-env>
 
 ```
@@ -23,10 +23,10 @@ conda activate myenv
 cd path/to/repo
 
 ```
-6. Install dependencies from requirements.txt:
+6. Install dependencies from pyprojet.toml:
 ```bash
 
-pip install -r requirements.txt
+pip install .
 
 ```
 
