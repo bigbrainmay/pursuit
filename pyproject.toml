@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pursuit"
 version = "0.0.1"
-description = "Tools for reading pursuit experiment data"
+description = "Tools for analyzing pursuit experiment data"
 authors = [{ name = "bigbrainmay", email = "bigbrainmay@gmail.com" }]
 readme = "README.md"
 license = { text = "MIT" }
