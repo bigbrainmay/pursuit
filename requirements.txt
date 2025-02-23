@@ -1,5 +1,6 @@
-pathlib
-scipy
-pandas
-numpy
-matplotlib
+jupyterlab == 4.3.5
+pathlib == 1.0.1
+scipy == 1.15.1
+pandas == 2.2.3
+numpy == 2.2.2
+matplotlib = 3.10.0
