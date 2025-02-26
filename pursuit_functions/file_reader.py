@@ -74,6 +74,9 @@ def load_session_files (data_dir: Path, suffix: str = 'pursuitRoot.mat', ignore_
             else:
                 # Convert integers to float before padding
                 value = np.array(value, dtype=float)
+                known_list_keys = ['spkTable']
+                if key in known_list_keys:
+                    key = f'{key}_1'
                 expanded_dict[key] = np.pad(value, (0, max_len - len(value)), constant_values=np.nan)
         
         struct_name = file.name
