@@ -36,3 +36,9 @@ def path_efficiency(all_regions_data):
     all_regions_data['path_efficiency'] = path_efficiency
     return all_regions_data
 
+
+def time_to_target(all_regions_data):
+    times = np.array(all_regions_data['time'])
+    time_to_target = times[-1] - times[0]
+    return time_to_target
+
