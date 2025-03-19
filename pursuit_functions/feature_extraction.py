@@ -84,6 +84,12 @@ def path_ratio(df, rat_x = "ratPos_1", rat_y = "ratPos_2", laser_x = "laserPos_1
     return (rat_path_dist / laser_path_dist).astype("float64")
 
 
+def sliding_scale_sum(df, col, window_size = 20):
+    '''
+
+    '''
+    pass
+
 def rat_angle_shifts(df, dist_col = 'laserDist'):
     '''
     identifies instances when the rat abruptly changes direction 
@@ -96,6 +102,7 @@ def rat_angle_shifts(df, dist_col = 'laserDist'):
     # this needs to be some sort of sliding threshold that takes the dist at the 
     # previous ~.3 seconds and compares it to the dist at the next ~.3 seconds (.3 seconds is about 20 rows)
     # if the dist increases by a certain amount then we count it as a shift
+    # need a sliding scale summation function
 
 
 
