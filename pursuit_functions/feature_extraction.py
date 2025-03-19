@@ -75,7 +75,7 @@ def mean_squared_value(dataframe, column):
     return mean_squared_value.astype("float64")
 
 # now define rat laser features for shortcut identification model
-def path_ratio(dataframe, rat_x = "ratPos_1", rat_y = "ratPos_2", laser_x = "laserPos_1", laser_y = "laserPos_2"):
+def path_ratio(df, rat_x = "ratPos_1", rat_y = "ratPos_2", laser_x = "laserPos_1", laser_y = "laserPos_2"):
 
     '''
     calcuates the efficiency of the path the rat takes compared to the laser path
@@ -84,12 +84,14 @@ def path_ratio(dataframe, rat_x = "ratPos_1", rat_y = "ratPos_2", laser_x = "las
     laser_path_dist = total_path_distance(df, laser_x, laser_y)
     return (rat_path_dist / laser_path_dist).astype("float64")
 
-def rat_angle_shifts():
+
+def rat_angle_shifts(df):
     '''
     identifies instances when the rat abruptly changes direction 
+    counts instances when the rat changes direction abruptly in a way that moves it further from the later position
     '''
-    
-    
-    pass
+    # first track the distance between the rat and the laser
+    rat_laser_dist = 
+
 
 
