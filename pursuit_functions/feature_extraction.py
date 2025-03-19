@@ -63,3 +63,32 @@ def movement_direction_change(all_regions_data):
     movement_diff = np.diff(movement_direction)
     movement_diff = np.concatenate(([np.nan], movement_diff))
     return movement_diff
+
+
+def total_path_distance(dataframe, x_col, y_col):
+    
+    x = dataframe[x_col].values
+    y = dataframe[y_col].values
+
+    dx = np.diff(x)
+    dy = np.diff(y)
+
+    total_path_distance = np.sqrt(dx**2 + dy**2).sum()
+    return total_path_distance
+
+
+def mean_squared_value(dataframe, column):
+
+    column_values = dataframe[column].astype("float64").values
+
+    mean_squared_value = np.mean(column_values ** 2)
+
+    return mean_squared_value
+
+
+def path_ratio(dataframe, rat_x = "ratPos_1", rat_y = "ratPos_2", laser_x = "laserPos_1", laser_y = "laserPos_2"):
+
+    total_rat_path = np.sqrt(np.diff(dataframe[rat_x])**2 + np.diff(dataframe[rat_y])**2).sum()
+    total_laser_path = np.sqrt(np.diff(dataframe[laser_x])**2 + np.diff(dataframe[laser_y])**2).sum()
+
+    return total_rat_path / total_laser_path if total_laser_path > 0 else np.nan
