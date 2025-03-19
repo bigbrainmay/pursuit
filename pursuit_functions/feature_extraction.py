@@ -42,3 +42,12 @@ def time_to_target(all_regions_data):
     time_to_target = times[-1] - times[0]
     return time_to_target
 
+def head_direction_change(all_regions_data):
+    head_direction = np.array(all_regions_data['laserBearingHD'])
+    head_diff = np.diff(head_direction)
+    return head_diff
+
+def movement_direction_change(all_regions_data):
+    movement_direction = np.array(all_regions_data['laserBearingMD'])
+    movement_diff = np.diff(movement_direction)
+    return movement_diff
