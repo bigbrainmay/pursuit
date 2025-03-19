@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 
 def calculate_curvature(dataframe, x_col, y_col):
-    velocity_x = np.gradient(dataframe[x_col])
-    velocity_y = np.gradient(dataframe[y_col])
+    velocity_x = np.gradient(dataframe[x_col].astype("float64"))
+    velocity_y = np.gradient(dataframe[y_col].astype("float64"))
     acceleration_x = np.gradient(velocity_x)
     acceleration_y = np.gradient(velocity_y)
 
