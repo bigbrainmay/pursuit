@@ -19,9 +19,6 @@ def calculate_curvature(all_regions_data):
 
 
 def path_efficiency(all_regions_data):
-    all_regions_data = all_regions_data.dropna(subset=["ratPos_1", "ratPos_2"])
-    all_regions_data = all_regions_data[~np.isinf(all_regions_data["ratPos_1"])]
-    all_regions_data = all_regions_data[~np.isinf(all_regions_data["ratPos_2"])]
 
     if all_regions_data.empty:
         all_regions_data['path_efficiency'] = 0
@@ -34,7 +31,7 @@ def path_efficiency(all_regions_data):
     if actual_distance > 0:
         path_efficiency = direct_distance / actual_distance
     all_regions_data['path_efficiency'] = path_efficiency
-    return all_regions_data
+    return path_efficiency
 
 
 def time_to_target(all_regions_data):
@@ -45,9 +42,11 @@ def time_to_target(all_regions_data):
 def head_direction_change(all_regions_data):
     head_direction = np.array(all_regions_data['laserBearingHD'])
     head_diff = np.diff(head_direction)
+    head_diff = np.concatenate(([np.nan], head_diff))
     return head_diff
 
 def movement_direction_change(all_regions_data):
     movement_direction = np.array(all_regions_data['laserBearingMD'])
     movement_diff = np.diff(movement_direction)
+    movement_diff = np.concatenate(([np.nan], movement_diff))
     return movement_diff
