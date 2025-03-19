@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
 
-def calculate_curvature(all_regions_data):
-    velocity_x = np.gradient(all_regions_data["ratPos_1"])
-    velocity_y = np.gradient(all_regions_data["ratPos_2"])
+def calculate_curvature(pursuit_task_1):
+    velocity_x = np.gradient(pursuit_task_1["ratPos_1"])
+    velocity_y = np.gradient(pursuit_task_1["ratPos_2"])
     acceleration_x = np.gradient(velocity_x)
     acceleration_y = np.gradient(velocity_y)
 
@@ -14,7 +14,19 @@ def calculate_curvature(all_regions_data):
     curvature[np.isnan(curvature)] = 0
     curvature[np.isinf(curvature)] = 0
 
-    return curvature
+    rat_x = pursuit_task_1["ratPos_1"].values
+    rat_y = pursuit_task_1["ratPos_2"].values
+
+    dx = np.diff(rat_x)
+    dy = np.diff(rat_y)
+
+    displacements = np.sqrt(dx**2 + dy**2)
+
+    path_distance = np.sum(displacements)
+
+    mean_curvature = np.sum(curvature) / path_distance
+    
+    return mean_curvature
 
 
 
