@@ -29,19 +29,20 @@ def calculate_curvature(dataframe, x_col, y_col):
     return mean_curvature
 
 
-def path_efficiency(dataframe, x_col, y_col):
+def path_efficiency(dataframe, x_pos, y_pos):
 
     if dataframe.empty:
         dataframe['path_efficiency'] = 0
         return dataframe
     
-    actual_distance = np.sqrt(np.diff(dataframe[x_col])**2 + np.diff(dataframe[y_col])**2).sum()
-    direct_distance = np.sqrt((dataframe[x_col].iloc[-1] - dataframe[x_col].iloc[0])**2 + (dataframe[y_col].iloc[-1] - dataframe[y_col].iloc[0])**2)
-
+    x_positions = dataframe[x_pos].astype("float64")
+    y_positions = dataframe[y_pos].astype("float64")
+    actual_distance = np.sqrt(np.diff(x_positions)**2 + np.diff(y_positions)**2).sum()
+    direct_distance = np.sqrt((x_positions.iloc[-1] - x_positions.iloc[0])**2 + (y_positions.iloc[-1] - y_positions.iloc[0])**2)
     path_efficiency = 0
     if actual_distance > 0:
         path_efficiency = direct_distance / actual_distance
-    dataframe['path_efficiency'] = path_efficiency
+    dataframe.loc[:, 'path_efficiency'] = path_efficiency
     return path_efficiency
 
 
