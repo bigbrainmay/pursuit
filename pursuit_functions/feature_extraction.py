@@ -45,21 +45,21 @@ def path_efficiency(dataframe, x_col, y_col):
     return path_efficiency
 
 
-def time_to_target(all_regions_data):
-    times = np.array(all_regions_data['time'])
+def time_to_target(dataframe):
+    times = np.array(dataframe['time'])
     time_to_target = times[-1] - times[0]
     return time_to_target
 
 
-def head_direction_change(all_regions_data):
-    head_direction = np.array(all_regions_data['laserBearingHD'])
+def head_direction_change(dataframe):
+    head_direction = np.array(dataframe['laserBearingHD'])
     head_diff = np.diff(head_direction)
     head_diff = np.concatenate(([np.nan], head_diff))
     return head_diff
 
 
-def movement_direction_change(all_regions_data):
-    movement_direction = np.array(all_regions_data['laserBearingMD'])
+def movement_direction_change(dataframe):
+    movement_direction = np.array(dataframe['laserBearingMD'])
     movement_diff = np.diff(movement_direction)
     movement_diff = np.concatenate(([np.nan], movement_diff))
     return movement_diff
