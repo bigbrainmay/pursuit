@@ -92,7 +92,7 @@ def rat_angle_shifts(df):
     '''
     # first track the distance between the rat and the laser
     pass
-    rat_laser_dist = 
+    # rat_laser_dist = 
 
 
 
