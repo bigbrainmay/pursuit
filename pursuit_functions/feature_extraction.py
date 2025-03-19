@@ -49,21 +49,7 @@ def path_efficiency(dataframe, x_pos, y_pos):
 def time_to_target(dataframe):
     times = np.array(dataframe['time'])
     time_to_target = times[-1] - times[0]
-    return time_to_target
-
-
-def head_direction_change(dataframe):
-    head_direction = np.array(dataframe['laserBearingHD'])
-    head_diff = np.diff(head_direction)
-    head_diff = np.concatenate(([np.nan], head_diff))
-    return head_diff
-
-
-def movement_direction_change(dataframe):
-    movement_direction = np.array(dataframe['laserBearingMD'])
-    movement_diff = np.diff(movement_direction)
-    movement_diff = np.concatenate(([np.nan], movement_diff))
-    return movement_diff
+    return time_to_target.astype("float64")
 
 
 def total_path_distance(dataframe, x_col, y_col):
@@ -75,7 +61,7 @@ def total_path_distance(dataframe, x_col, y_col):
     dy = np.diff(y)
 
     total_path_distance = np.sqrt(dx**2 + dy**2).sum()
-    return total_path_distance
+    return total_path_distance.astype("float64")
 
 
 def mean_squared_value(dataframe, column):
@@ -84,7 +70,7 @@ def mean_squared_value(dataframe, column):
 
     mean_squared_value = np.mean(column_values ** 2)
 
-    return mean_squared_value
+    return mean_squared_value.astype("float64")
 
 
 def path_ratio(dataframe, rat_x = "ratPos_1", rat_y = "ratPos_2", laser_x = "laserPos_1", laser_y = "laserPos_2"):
@@ -92,4 +78,4 @@ def path_ratio(dataframe, rat_x = "ratPos_1", rat_y = "ratPos_2", laser_x = "las
     total_rat_path = np.sqrt(np.diff(dataframe[rat_x])**2 + np.diff(dataframe[rat_y])**2).sum()
     total_laser_path = np.sqrt(np.diff(dataframe[laser_x])**2 + np.diff(dataframe[laser_y])**2).sum()
 
-    return total_rat_path / total_laser_path if total_laser_path > 0 else np.nan
+    return (total_rat_path / total_laser_path).astype("float64") if total_laser_path > 0 else np.nan
