@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
 
-def calculate_curvature(pursuit_task_1):
-    velocity_x = np.gradient(pursuit_task_1["ratPos_1"])
-    velocity_y = np.gradient(pursuit_task_1["ratPos_2"])
+def calculate_curvature(dataframe, x_col, y_col):
+    velocity_x = np.gradient(dataframe[x_col])
+    velocity_y = np.gradient(dataframe[y_col])
     acceleration_x = np.gradient(velocity_x)
     acceleration_y = np.gradient(velocity_y)
 
@@ -14,35 +14,34 @@ def calculate_curvature(pursuit_task_1):
     curvature[np.isnan(curvature)] = 0
     curvature[np.isinf(curvature)] = 0
 
-    rat_x = pursuit_task_1["ratPos_1"].values
-    rat_y = pursuit_task_1["ratPos_2"].values
+    x = dataframe[x_col].values
+    y = dataframe[y_col].values
 
-    dx = np.diff(rat_x)
-    dy = np.diff(rat_y)
+    dx = np.diff(x)
+    dy = np.diff(y)
 
     displacements = np.sqrt(dx**2 + dy**2)
 
     path_distance = np.sum(displacements)
 
-    mean_curvature = np.sum(curvature) / path_distance
+    mean_curvature = np.sum(curvature) / path_distance if path_distance > 0 else 0
     
     return mean_curvature
 
 
+def path_efficiency(dataframe, x_col, y_col):
 
-def path_efficiency(all_regions_data):
-
-    if all_regions_data.empty:
-        all_regions_data['path_efficiency'] = 0
-        return all_regions_data
+    if dataframe.empty:
+        dataframe['path_efficiency'] = 0
+        return dataframe
     
-    actual_distance = np.sqrt(np.diff(all_regions_data["ratPos_1"])**2 + np.diff(all_regions_data["ratPos_2"])**2).sum()
-    direct_distance = np.sqrt((all_regions_data["ratPos_1"].iloc[-1] - all_regions_data["ratPos_1"].iloc[0])**2 + (all_regions_data["ratPos_2"].iloc[-1] - all_regions_data["ratPos_2"].iloc[0])**2)
+    actual_distance = np.sqrt(np.diff(dataframe[x_col])**2 + np.diff(dataframe[y_col])**2).sum()
+    direct_distance = np.sqrt((dataframe[x_col].iloc[-1] - dataframe[x_col].iloc[0])**2 + (dataframe[y_col].iloc[-1] - dataframe[y_col].iloc[0])**2)
 
     path_efficiency = 0
     if actual_distance > 0:
         path_efficiency = direct_distance / actual_distance
-    all_regions_data['path_efficiency'] = path_efficiency
+    dataframe['path_efficiency'] = path_efficiency
     return path_efficiency
 
 
@@ -51,11 +50,13 @@ def time_to_target(all_regions_data):
     time_to_target = times[-1] - times[0]
     return time_to_target
 
+
 def head_direction_change(all_regions_data):
     head_direction = np.array(all_regions_data['laserBearingHD'])
     head_diff = np.diff(head_direction)
     head_diff = np.concatenate(([np.nan], head_diff))
     return head_diff
+
 
 def movement_direction_change(all_regions_data):
     movement_direction = np.array(all_regions_data['laserBearingMD'])
