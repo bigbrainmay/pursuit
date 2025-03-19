@@ -44,7 +44,6 @@ def path_efficiency(dataframe, x_pos, y_pos):
     path_efficiency = 0
     if actual_distance > 0:
         path_efficiency = direct_distance / actual_distance
-    dataframe.loc[:, 'path_efficiency'] = path_efficiency
     return path_efficiency
 
 
@@ -85,14 +84,18 @@ def path_ratio(df, rat_x = "ratPos_1", rat_y = "ratPos_2", laser_x = "laserPos_1
     return (rat_path_dist / laser_path_dist).astype("float64")
 
 
-def rat_angle_shifts(df):
+def rat_angle_shifts(df, dist_col = 'laserDist'):
     '''
     identifies instances when the rat abruptly changes direction 
     counts instances when the rat changes direction abruptly in a way that moves it further from the later position
     '''
     # first track the distance between the rat and the laser
-    pass
-    # rat_laser_dist = 
+    rat_laser_dist = df[dist_col].astype("float64")
+
+    # now find times when the distance goes from close to far for a long ish time 
+    # this needs to be some sort of sliding threshold that takes the dist at the 
+    # previous ~.3 seconds and compares it to the dist at the next ~.3 seconds (.3 seconds is about 20 rows)
+    # if the dist increases by a certain amount then we count it as a shift
 
 
 
