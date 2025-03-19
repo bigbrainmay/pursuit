@@ -29,6 +29,8 @@ def calculate_curvature(dataframe, x_col, y_col):
     return mean_curvature
 
 
+
+
 def path_efficiency(dataframe, x_pos, y_pos):
 
     if dataframe.empty:
@@ -37,7 +39,7 @@ def path_efficiency(dataframe, x_pos, y_pos):
     
     x_positions = dataframe[x_pos].astype("float64")
     y_positions = dataframe[y_pos].astype("float64")
-    actual_distance = np.sqrt(np.diff(x_positions)**2 + np.diff(y_positions)**2).sum()
+    actual_distance = total_path_distance(dataframe, x_pos, y_pos)
     direct_distance = np.sqrt((x_positions.iloc[-1] - x_positions.iloc[0])**2 + (y_positions.iloc[-1] - y_positions.iloc[0])**2)
     path_efficiency = 0
     if actual_distance > 0:
@@ -72,10 +74,22 @@ def mean_squared_value(dataframe, column):
 
     return mean_squared_value.astype("float64")
 
-
+# now define rat laser features for shortcut identification model
 def path_ratio(dataframe, rat_x = "ratPos_1", rat_y = "ratPos_2", laser_x = "laserPos_1", laser_y = "laserPos_2"):
 
-    total_rat_path = np.sqrt(np.diff(dataframe[rat_x])**2 + np.diff(dataframe[rat_y])**2).sum()
-    total_laser_path = np.sqrt(np.diff(dataframe[laser_x])**2 + np.diff(dataframe[laser_y])**2).sum()
+    '''
+    calcuates the efficiency of the path the rat takes compared to the laser path
+    '''
+    rat_path_dist = total_path_distance(df, rat_x, rat_y)
+    laser_path_dist = total_path_distance(df, laser_x, laser_y)
+    return (rat_path_dist / laser_path_dist).astype("float64")
 
-    return (total_rat_path / total_laser_path).astype("float64") if total_laser_path > 0 else np.nan
+def rat_angle_shifts():
+    '''
+    identifies instances when the rat abruptly changes direction 
+    '''
+    
+    
+    pass
+
+
