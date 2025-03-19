@@ -91,6 +91,7 @@ def rat_angle_shifts(df):
     counts instances when the rat changes direction abruptly in a way that moves it further from the later position
     '''
     # first track the distance between the rat and the laser
+    pass
     rat_laser_dist = 
 
 
