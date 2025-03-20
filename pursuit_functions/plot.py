@@ -6,7 +6,7 @@ import numpy as np
 
 def plot_trajectory(df, ax = None, figsize = None, rat_x_col = 'ratPos_1', rat_y_col = 'ratPos_2', 
                    laser_x_col = 'laserPos_1', laser_y_col = 'laserPos_2', rat_color = 'blue', 
-                   laser_color = 'red', legend = False, legend_labels = ['mouse path', 'laser path', 'start','end'],
+                   laser_color = 'red', legend = False, legend_labels = ['rat path', 'laser path', 'start','end'],
                    plot_start_end = True, title = ''):
 
     '''
