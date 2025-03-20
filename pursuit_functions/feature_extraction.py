@@ -102,7 +102,7 @@ def extract_laser_feats(df, id_col = 'pursuit_task_id', columns = ['pursuit_task
         calculate_curvature(p_task_df, laser_pos_x, laser_pos_y),
         path_efficiency(p_task_df, laser_pos_x, laser_pos_y),
         total_path_distance(p_task_df, laser_pos_x, laser_pos_y),
-        mean_squared_value(p_task_df, laser_move_dir)
+        mean_squared_value(p_task_df, laser_move_dir),
         laser_jerk(p_task_df)
         ]
         features_data.append(features_list)
