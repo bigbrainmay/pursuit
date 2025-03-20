@@ -7,7 +7,7 @@ import numpy as np
 def plot_trajectory(df, ax = None, figsize = None, rat_x_col = 'ratPos_1', rat_y_col = 'ratPos_2', 
                    laser_x_col = 'laserPos_1', laser_y_col = 'laserPos_2', rat_color = 'blue', 
                    laser_color = 'red', legend = False, legend_labels = ['mouse path', 'laser path', 'start','end'],
-                   plot_start_end = True):
+                   plot_start_end = True, title = ''):
 
     '''
     Plots the trajectory of the rat and the laser
@@ -29,6 +29,7 @@ def plot_trajectory(df, ax = None, figsize = None, rat_x_col = 'ratPos_1', rat_y
         ax.scatter(df[laser_x_col].iloc[-1], df[laser_y_col].iloc[-1], color="red", s=100, zorder=3)
 
     ax.set_aspect('equal', adjustable='box')
+    ax.set_title(title)
     ax.set_xlabel("X Position")
     ax.set_ylabel("Y Position")  
     ax.legend(labels = legend_labels)
@@ -41,8 +42,6 @@ def animate_trajectory(df, time_col='time', rat_x_col='ratPos_1', rat_y_col='rat
                        rat_color='blue', laser_color='red', speed_factor=1.0):
     """
     Creates an animated plot showing the movement of the rat and laser over time.
-    - Now runs in real time based on timestamps from the dataframe.
-    - Allows speed adjustment via speed_factor (default=1.0).
     """
 
     fig, ax = plt.subplots(figsize=(6,6))
@@ -64,7 +63,7 @@ def animate_trajectory(df, time_col='time', rat_x_col='ratPos_1', rat_y_col='rat
 
     ax.set_xlabel("X Position")
     ax.set_ylabel("Y Position")
-    ax.set_title("Real-Time Rat and Laser Movement")
+    ax.set_title("Rat and Laser Movement")
 
     
     rat_traj, = ax.plot([], [], color=rat_color, alpha=0.5, label="Rat Path")
@@ -100,5 +99,38 @@ def animate_trajectory(df, time_col='time', rat_x_col='ratPos_1', rat_y_col='rat
         return rat_traj, laser_traj, rat_marker, laser_marker
 
     ani = animation.FuncAnimation(fig, update, frames=len(df), interval=np.mean(time_diffs), blit=False)
+    plt.rcParams["animation.embed_limit"] = 10
 
     return HTML(ani.to_jshtml())  
+
+
+
+    def plot_pr_curves(models, X, y, class_labels):
+        '''
+        plots precision recall curves for each class for a list of models
+        '''
+
+        # first binarize the label because some models need that 
+        y_binarized = label_binarize(y, classes=class_labels)
+        num_classes = len(class_labels)
+
+        # create a separate plot for each class
+        for class_idx, class_label in enumerate(class_labels):
+            for model_name, model in models.items():
+                # all models we made have this but just in case 
+                if hasattr(model, "predict_proba"):
+                    y_scores = model.predict_proba(X)[:, class_idx]
+                else:
+                    print('missing predict_proba method')
+                    return 
+                # get precision recall curve
+                precision, recall, _ = precision_recall_curve(y_binarized[:, class_idx], y_scores)
+                avg_precision = average_precision_score(y_binarized[:, class_idx], y_scores)
+
+                # plot the curve
+                plt.plot(recall, precision, marker='.', label=f'{model_name} (AP = {avg_precision:.2f})')
+
+    plt.xlabel('Recall')
+    plt.ylabel('Precision')
+    plt.title(f'Precision-Recall curve for {class_label}')
+    plt.legend()
