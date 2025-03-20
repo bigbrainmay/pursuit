@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 from scipy.ndimage import gaussian_filter1d
+from . import plot
+import matplotlib.pyplot as plt
 
 def calculate_curvature(dataframe, x_col, y_col):
     velocity_x = np.gradient(dataframe[x_col].astype("float64"))
@@ -94,7 +96,7 @@ def old_extract_laser_feats(df, id_col = 'pursuit_task_id', columns = ['pursuit_
         features_data.append(features_list)
     return pd.DataFrame(features_data, columns = columns)
 
-def extract_laser_feats(df, id_col = 'pursuit_task_id', columns = ['pursuit_task_id', 'curvature', 'path_efficiency', 'total_path_distance', 'avsq_laserMoveDir'],
+def extract_laser_feats(df, id_col = 'pursuit_task_id', columns = ['pursuit_task_id', 'curvature', 'path_efficiency', 'total_path_distance', 'avsq_laserMoveDir', 'avsq_laserJerk'],
                             laser_pos_x = 'laserPos_1', laser_pos_y = 'laserPos_2', rat_pos_x = 'ratPos_1', rat_pos_y = 'ratPos_2', laser_bearing_hd = 'laserBearingHD', laser_bearing_md = 'laserBearingMD', laser_move_dir = 'laserMoveDir'):
     features_data = []
     for pursuit_task_id, p_task_df in df.groupby(id_col):
@@ -130,23 +132,29 @@ def sliding_scale_sum(df, col, window_size = 20):
     pass
 
 
-def laser_jerk(df, laser_acc = 'laserAcc', time_col = 'time', dt = 0.0167):
+def laser_jerk(df, laser_acc = 'laserAcc', time_col = 'time', dt = 0.0167,
+                     x_col="laserPos_1", y_col="laserPos_2"):
     '''
     calculates the jerk of the laser
     '''
     laser_acc = df[laser_acc].astype("float64")
 
-    # Generate a synthetic time array assuming constant dt
-    time = np.arange(0, len(df) * dt, dt)  # Starts at 0, increments by dt
+    # time got mangled
+    # time = np.arange(0, len(df) * dt, dt)  # Starts at 0, increments by dt
 
-    # Compute jerk (d(Acceleration)/dt)
-    jerk = np.gradient(laser_acc, time)
+    jerk = np.gradient(laser_acc, dt)
 
-    # Replace inf/nan values with zeros
     jerk[np.isinf(jerk)] = np.nan
-    jerk = np.nan_to_num(jerk)  # Convert NaNs to 0
+    jerk = np.nan_to_num(jerk)  #  nan to 0
 
-    return np.mean(jerk)
+    # msj jerk to get rid of sign and higher weight to higher jerk
+    msj = np.mean(jerk**2)
+
+    # norm by total path dist 
+    path_distance = total_path_distance(df, x_col, y_col)
+    normalized_msj = msj / path_distance if path_distance > 0 else msj
+
+    return normalized_msj
 
 
 # one feature: were a rat was close to the laser, then further, then closer again 
@@ -184,4 +192,27 @@ def rat_laser_distance_shifts(df, dist_col = 'laserDist', window_size = 20, thre
     # if the dist increases by a certain amount then we count it as a shift
     # need a sliding scale summation function
     
+
+def gather_groundtruth(pursuit_ids, df):
+
+    labels_dict = {}
+
+    
+    for i, pursuit_id in enumerate(pursuit_ids):
+        # print amount done
+        print(f"{i} out of {len(pursuit_ids)} done")
+        pursuit_df = df[df['pursuit_task_id'] == pursuit_id]
+        
+        # graph it 
+        plot.plot_trajectory(pursuit_df)
+        plt.show()
+        # get the user input
+        label = input("is it a line (l), charactaristic (c), random (r) or unknown (u)? ")
+
+        labels_dict[pursuit_id] = label
+
+    return labels_dict
+
+
+
 
