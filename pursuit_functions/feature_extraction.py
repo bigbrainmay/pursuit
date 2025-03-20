@@ -77,7 +77,7 @@ def mean_squared_value(dataframe, column):
     return mean_squared_value.astype("float64")
 
 
-def extract_laser_feats(df, id_col = 'pursuit_task_id', columns = ['pursuit_task_id', 'curvature', 'path_efficiency', 'time_to_target', 'total_path_distance', 'path_ratio', 'avsq_laserHD', 'avsq_laserMD', 'avsq_laserMoveDir'],
+def old_extract_laser_feats(df, id_col = 'pursuit_task_id', columns = ['pursuit_task_id', 'curvature', 'path_efficiency', 'time_to_target', 'total_path_distance', 'path_ratio', 'avsq_laserHD', 'avsq_laserMD', 'avsq_laserMoveDir'],
                             laser_pos_x = 'laserPos_1', laser_pos_y = 'laserPos_2', rat_pos_x = 'ratPos_1', rat_pos_y = 'ratPos_2', laser_bearing_hd = 'laserBearingHD', laser_bearing_md = 'laserBearingMD', laser_move_dir = 'laserMoveDir'):
     features_data = []
     for pursuit_task_id, p_task_df in df.groupby(id_col):
@@ -94,6 +94,19 @@ def extract_laser_feats(df, id_col = 'pursuit_task_id', columns = ['pursuit_task
         features_data.append(features_list)
     return pd.DataFrame(features_data, columns = columns)
 
+def extract_laser_feats(df, id_col = 'pursuit_task_id', columns = ['pursuit_task_id', 'curvature', 'path_efficiency', 'total_path_distance', 'avsq_laserMoveDir'],
+                            laser_pos_x = 'laserPos_1', laser_pos_y = 'laserPos_2', rat_pos_x = 'ratPos_1', rat_pos_y = 'ratPos_2', laser_bearing_hd = 'laserBearingHD', laser_bearing_md = 'laserBearingMD', laser_move_dir = 'laserMoveDir'):
+    features_data = []
+    for pursuit_task_id, p_task_df in df.groupby(id_col):
+        features_list = [pursuit_task_id,
+        calculate_curvature(p_task_df, laser_pos_x, laser_pos_y),
+        path_efficiency(p_task_df, laser_pos_x, laser_pos_y),
+        total_path_distance(p_task_df, laser_pos_x, laser_pos_y),
+        mean_squared_value(p_task_df, laser_move_dir)
+        laser_jerk(p_task_df)
+        ]
+        features_data.append(features_list)
+    return pd.DataFrame(features_data, columns = columns)
 
 # now define rat laser features for shortcut identification model
 def path_ratio(df, laser_acc = 'laserAcc', dt=0.0167):
