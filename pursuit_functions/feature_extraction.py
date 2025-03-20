@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from scipy.ndimage import gaussian_filter1d
 
 def calculate_curvature(dataframe, x_col, y_col):
     velocity_x = np.gradient(dataframe[x_col].astype("float64"))
@@ -95,7 +96,7 @@ def extract_laser_feats(df, id_col = 'pursuit_task_id', columns = ['pursuit_task
 
 
 # now define rat laser features for shortcut identification model
-def path_ratio(df, rat_x = "ratPos_1", rat_y = "ratPos_2", laser_x = "laserPos_1", laser_y = "laserPos_2"):
+def path_ratio(df, laser_acc = 'laserAcc', dt=0.0167):
 
     '''
     calcuates the efficiency of the path the rat takes compared to the laser path
@@ -115,11 +116,52 @@ def sliding_scale_sum(df, col, window_size = 20):
     '''
     pass
 
+
+def laser_jerk(df, laser_acc = 'laserAcc', time_col = 'time', dt = 0.0167):
+    '''
+    calculates the jerk of the laser
+    '''
+    laser_acc = df[laser_acc].astype("float64")
+
+    # Generate a synthetic time array assuming constant dt
+    time = np.arange(0, len(df) * dt, dt)  # Starts at 0, increments by dt
+
+    # Compute jerk (d(Acceleration)/dt)
+    jerk = np.gradient(laser_acc, time)
+
+    # Replace inf/nan values with zeros
+    jerk[np.isinf(jerk)] = np.nan
+    jerk = np.nan_to_num(jerk)  # Convert NaNs to 0
+
+    return np.mean(jerk)
+
+
+# one feature: were a rat was close to the laser, then further, then closer again 
+
+# 
+
 def rat_angle_shifts(df, dist_col = 'laserDist'):
     '''
-    identifies instances when the rat abruptly changes direction 
-    counts instances when the rat changes direction abruptly in a way that moves it further from the later position
+    measures the times when the rat changes direction abruptly
     '''
+    
+    # then need to find times when the rat's direction changes abruptly
+    
+
+
+    # now figure out if a time has both of these things happening at the same time
+
+    # could also do when shortest path from rat to laser decreases then increases again
+    # or when the direction of the rat vs the direction to the laser diverges, but the 
+
+    pass
+
+
+
+
+
+def rat_laser_distance_shifts(df, dist_col = 'laserDist', window_size = 20, threshold = 10):
+
     # first track the distance between the rat and the laser
     rat_laser_dist = df[dist_col].astype("float64")
 
@@ -128,6 +170,5 @@ def rat_angle_shifts(df, dist_col = 'laserDist'):
     # previous ~.3 seconds and compares it to the dist at the next ~.3 seconds (.3 seconds is about 20 rows)
     # if the dist increases by a certain amount then we count it as a shift
     # need a sliding scale summation function
-
-
+    
 
