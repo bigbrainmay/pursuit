@@ -67,11 +67,32 @@ def total_path_distance(dataframe, x_col, y_col):
 
 def mean_squared_value(dataframe, column):
 
-    column_values = dataframe[column].astype("float64").values
+    values = dataframe[column].astype("float64").dropna().values
 
-    mean_squared_value = np.mean(column_values ** 2)
+    if len(values) == 0:
+        return 0
+    mean_squared_value = np.mean(values ** 2)
 
     return mean_squared_value.astype("float64")
+
+
+def extract_laser_feats(df, id_col = 'pursuit_task_id', columns = ['pursuit_task_id', 'curvature', 'path_efficiency', 'time_to_target', 'total_path_distance', 'path_ratio', 'avsq_laserHD', 'avsq_laserMD', 'avsq_laserMoveDir'],
+                            laser_pos_x = 'laserPos_1', laser_pos_y = 'laserPos_2', rat_pos_x = 'ratPos_1', rat_pos_y = 'ratPos_2', laser_bearing_hd = 'laserBearingHD', laser_bearing_md = 'laserBearingMD', laser_move_dir = 'laserMoveDir'):
+    features_data = []
+    for pursuit_task_id, p_task_df in df.groupby(id_col):
+        features_list = [pursuit_task_id,
+        calculate_curvature(p_task_df, laser_pos_x, laser_pos_y),
+        path_efficiency(p_task_df, rat_pos_x, rat_pos_y),
+        time_to_target(p_task_df),
+        total_path_distance(p_task_df, laser_pos_x, laser_pos_y),
+        path_ratio(p_task_df),
+        mean_squared_value(p_task_df, laser_bearing_hd),
+        mean_squared_value(p_task_df, laser_bearing_md),
+        mean_squared_value(p_task_df, laser_move_dir)
+        ]
+        features_data.append(features_list)
+    return pd.DataFrame(features_data, columns = columns)
+
 
 # now define rat laser features for shortcut identification model
 def path_ratio(df, rat_x = "ratPos_1", rat_y = "ratPos_2", laser_x = "laserPos_1", laser_y = "laserPos_2"):
@@ -81,7 +102,11 @@ def path_ratio(df, rat_x = "ratPos_1", rat_y = "ratPos_2", laser_x = "laserPos_1
     '''
     rat_path_dist = total_path_distance(df, rat_x, rat_y)
     laser_path_dist = total_path_distance(df, laser_x, laser_y)
-    return (rat_path_dist / laser_path_dist).astype("float64")
+    # if laser_path_dist == 0:
+    #     print(f' error in path ratio calc for {df['pursuit_task_id']}')
+    if laser_path_dist == 0:
+        return 0
+    return (rat_path_dist / laser_path_dist).astype("float64") 
 
 
 def sliding_scale_sum(df, col, window_size = 20):
