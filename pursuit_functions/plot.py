@@ -1,4 +1,6 @@
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import numpy as np
 
 
 
@@ -30,3 +32,75 @@ def plot_trajectory(df, ax = None, figsize = None, rat_x_col = 'ratPos_1', rat_y
     ax.set_xlabel("X Position")
     ax.set_ylabel("Y Position")  
     ax.legend(labels = legend_labels)
+
+
+from IPython.display import HTML
+
+def animate_trajectory(df, time_col='time', rat_x_col='ratPos_1', rat_y_col='ratPos_2', 
+                       laser_x_col='laserPos_1', laser_y_col='laserPos_2',
+                       rat_color='blue', laser_color='red'):
+    """
+    Creates an animated plot showing the movement of the rat and laser over time.
+    - Now runs in real time based on timestamps from the dataframe.
+    """
+
+    fig, ax = plt.subplots(figsize=(6,6))
+
+    # Ensure float64 types
+    df = df.copy()
+    df[[rat_x_col, laser_x_col, rat_y_col, laser_y_col]] = df[[rat_x_col, laser_x_col, rat_y_col, laser_y_col]].astype("float64")
+
+    # Compute time differences for real-time updates
+    time_diffs = np.diff(df[time_col].to_numpy(), prepend=df[time_col].iloc[0])  # Time deltas
+    time_diffs = np.clip(time_diffs, 1, None)  # Prevent 0 or negative intervals
+
+    # Set up plot limits
+    ax.set_xlim(df[[rat_x_col, laser_x_col]].min().min(), df[[rat_x_col, laser_x_col]].max().max())
+    ax.set_ylim(df[[rat_y_col, laser_y_col]].min().min(), df[[rat_y_col, laser_y_col]].max().max())
+
+    ax.set_xlabel("X Position")
+    ax.set_ylabel("Y Position")
+    ax.set_title("Real-Time Rat and Laser Movement")
+
+    # Initialize trajectory lines
+    rat_traj, = ax.plot([], [], color=rat_color, alpha=0.5, label="Rat Path")
+    laser_traj, = ax.plot([], [], color=laser_color, alpha=0.5, label="Laser Path")
+
+    # Initialize moving markers
+    rat_marker, = ax.plot([], [], 'o', color=rat_color, markersize=6, label="Rat Position")
+    laser_marker, = ax.plot([], [], 'o', color=laser_color, markersize=6, label="Laser Position")
+
+    ax.legend()
+
+    def update(frame):
+        """
+        Animation update function.
+        - Runs in real time based on timestamps.
+        """
+        if frame >= len(df):
+            return rat_traj, laser_traj, rat_marker, laser_marker  # Prevent out-of-bounds errors
+
+        # Ensure data is always an array (even when empty)
+        rat_x_vals = df[rat_x_col].iloc[:frame+1].to_numpy()
+        rat_y_vals = df[rat_y_col].iloc[:frame+1].to_numpy()
+        laser_x_vals = df[laser_x_col].iloc[:frame+1].to_numpy()
+        laser_y_vals = df[laser_y_col].iloc[:frame+1].to_numpy()
+
+        rat_traj.set_data(rat_x_vals, rat_y_vals)
+        laser_traj.set_data(laser_x_vals, laser_y_vals)
+
+        # Ensure markers are updated to the last valid position
+        rat_marker.set_data([rat_x_vals[-1]], [rat_y_vals[-1]])
+        laser_marker.set_data([laser_x_vals[-1]], [laser_y_vals[-1]])
+
+        return rat_traj, laser_traj, rat_marker, laser_marker
+
+    def dynamic_interval():
+        """ Generator function to dynamically change interval """
+        for dt in time_diffs:
+            yield int(dt * 1000)  # Convert seconds to milliseconds
+
+    ani = animation.FuncAnimation(fig, update, frames=len(df), interval=1, blit=False)
+    ani.event_source.interval = dynamic_interval().__next__()  # Dynamically change interval
+
+    return HTML(ani.to_jshtml())  # Works in Jupyter
