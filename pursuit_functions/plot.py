@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.animation as animation
 import numpy as np
+import random
 
 from sklearn.preprocessing import label_binarize
 from sklearn.metrics import precision_recall_curve, average_precision_score, auc
@@ -116,6 +117,7 @@ def plot_pr_curves(models, X, y, class_labels, numeric_label_dict = {0:'Characte
     '''
     # first binarize the label because some models need that 
     y_binarized = label_binarize(y, classes=class_labels)
+    
     num_classes = len(class_labels)
 
     colors = cm.get_cmap(palette, len(models))
@@ -124,9 +126,9 @@ def plot_pr_curves(models, X, y, class_labels, numeric_label_dict = {0:'Characte
     for class_idx, class_label in enumerate(class_labels):
         plt.figure(figsize=(6, 6))
         for model_idx, (model_name, model) in enumerate(models.items()):
-            # all models we made have this but just in case 
+            # all models we made have this but just in case
             if hasattr(model, "predict_proba"):
-                y_scores = model.predict_proba(X)[:, class_idx]
+                y_scores = model.predict_proba(X)[:, class_idx] 
             else:
                 print('missing predict_proba method')
                 return 
@@ -142,3 +144,58 @@ def plot_pr_curves(models, X, y, class_labels, numeric_label_dict = {0:'Characte
         plt.ylabel('Precision')
         plt.title(f'Precision-Recall curve for {numeric_label_dict[class_label]}')
         plt.legend()
+
+
+def plot_pca(pca_df, palette = 'tab10', labels_col = None, dot_size = .5):
+    plt.figure(figsize=(8,6))
+    if labels_col is not None:
+        unique_labels = pca_df[labels_col].unique()
+        color_map = {label: i for i, label in enumerate(unique_labels)}
+        colors = pca_df[labels_col].map(color_map)
+        cmap = plt.get_cmap(palette, len(unique_labels))  
+
+
+        plt.scatter(pca_df["PC1"], pca_df["PC2"], alpha=0.5, s = dot_size, c=colors,cmap=cmap)
+        handles = [plt.Line2D([0], [0], marker='o', linestyle='', color=cmap(i / len(unique_labels)), markersize=8, label=label) 
+                for label, i in color_map.items()]
+        plt.legend(handles=handles, title="Label")
+        
+        centroids = pca_df.groupby(labels_col)[["PC1", "PC2"]].mean()
+        for label, i in color_map.items():
+            plt.scatter(centroids.loc[label, "PC1"], centroids.loc[label, "PC2"], 
+                        color=cmap(i / len(unique_labels)), edgecolors='black', s=100, marker='o')
+
+        plt.xlabel("PC1")
+        plt.ylabel("PC2")
+        plt.title("PCA Plot with Labels")
+    else:
+        plt.scatter(pca_df["PC1"], pca_df["PC2"], alpha=0.5, s = dot_size)
+        plt.xlabel("PC1")
+        plt.ylabel("PC2")
+        plt.title("PCA Plot")
+
+def plot_biplot(pca_df, loadings_df, feature_names = ['curvature', 'path_efficiency', 'total_path_distance','avsq_laserMoveDir', 'avsq_laserJerk'],
+                random_state = 3, dot_size = .5, labels_col = None, palette = 'tab10',
+                title = "PCA Biplot"):
+    '''
+    plots pca as well as a biplot of the loadings 
+    '''
+    plot_pca(pca_df, dot_size = dot_size, labels_col = labels_col, palette = palette)
+    # need this to stagger the plots
+    random.seed(random_state)  # Set a fixed random state
+    random_numbers = random.choices(range(4, 6), k=len(feature_names)) 
+    for i, feature in enumerate(feature_names):
+        num = random_numbers[i]        
+        plt.arrow(0, 0, loadings_df.iloc[i, 0] * 3.5, loadings_df.iloc[i, 1] * 3.5, 
+                  color='red', alpha=0.5, head_width=0.1)
+        
+
+        plt.text(loadings_df.iloc[i, 0] * num, loadings_df.iloc[i, 1] *num , 
+                 feature, color='black', fontsize=12)
+    
+    
+    plt.xlabel("PC1")
+    plt.ylabel("PC2")
+    plt.title(title)
+    plt.show()
+

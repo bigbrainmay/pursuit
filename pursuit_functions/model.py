@@ -6,15 +6,60 @@ from sklearn.linear_model import LogisticRegression
 from xgboost import XGBClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.decomposition import PCA
 
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import label_binarize
 
 import numpy as np
+import pandas as pd
 from itertools import product
 
 
 randome_state = 42
+
+def run_pca(df, labels_dict = None, n_components=2, drop_cols=['pursuit_task_id'], top_n_features=3):
+    '''
+    runs pca, returns important metrics and the resulting dataframe
+
+    '''
+
+    # scale the data
+    scaler = StandardScaler()
+    scaled_features = scaler.fit_transform(df.drop(columns=drop_cols).values)
+    pca = PCA(n_components=n_components)
+    pca_components = pca.fit_transform(scaled_features)
+    pca_df = pd.DataFrame(pca_components,
+                          columns=[f"PC{i+1}" for i in range(n_components)],
+                          index=df.index)
+    # add back the pursuit task id
+    pca_df['pursuit_task_id'] = df['pursuit_task_id']
+    # adds labels where ther are labels
+    if labels_dict is not None:
+        pca_df['label'] = pca_df['pursuit_task_id'].map(labels_dict)
+    
+    explained_variance_ratio = pca.explained_variance_ratio_
+    cumulative_variance_ratio = np.cumsum(explained_variance_ratio)
+
+    loadings = pca.components_.T * np.sqrt(pca.explained_variance_)
+    pca_loadings = pd.DataFrame(loadings,
+                                columns=[f"PC{i+1}" for i in range(n_components)])
+    
+    top_features = {}
+    for i in range(n_components):
+        top_feats = pca_loadings.iloc[i].abs().nlargest(top_n_features)
+        top_features[f"PC{i+1}"] = top_feats
+    
+    result = {"pca_df": pca_df,
+        "explained_variance_ratio": explained_variance_ratio,
+        "cumulative_variance_ratio": cumulative_variance_ratio,
+        "pca_loadings": pca_loadings,
+        "top_features": top_features}
+
+    return result
+
+
+
 
 def train_logistic_models(X, y, cv_folds=10):
     """
