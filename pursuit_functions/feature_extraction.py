@@ -111,7 +111,7 @@ def extract_laser_feats(df, id_col = 'pursuit_task_id', columns = ['pursuit_task
     return pd.DataFrame(features_data, columns = columns)
 
 # now define rat laser features for shortcut identification model
-def path_ratio(df, laser_acc = 'laserAcc', dt=0.0167):
+def path_ratio(df, rat_x = "ratPos_1", rat_y = "ratPos_2", laser_x = "laserPos_1", laser_y = "laserPos_2"):
 
     '''
     calcuates the efficiency of the path the rat takes compared to the laser path
