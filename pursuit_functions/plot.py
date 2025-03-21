@@ -1,6 +1,10 @@
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import matplotlib.animation as animation
 import numpy as np
+
+from sklearn.preprocessing import label_binarize
+from sklearn.metrics import precision_recall_curve, average_precision_score, auc
 
 
 
@@ -105,32 +109,36 @@ def animate_trajectory(df, time_col='time', rat_x_col='ratPos_1', rat_y_col='rat
 
 
 
-    def plot_pr_curves(models, X, y, class_labels):
-        '''
-        plots precision recall curves for each class for a list of models
-        '''
+def plot_pr_curves(models, X, y, class_labels, numeric_label_dict = {0:'Characteristic', 1:'Linear', 2:'Pseudorandom'},
+                    palette = 'tab10'):
+    '''
+    plots precision recall curves for each class for a list of models
+    '''
+    # first binarize the label because some models need that 
+    y_binarized = label_binarize(y, classes=class_labels)
+    num_classes = len(class_labels)
 
-        # first binarize the label because some models need that 
-        y_binarized = label_binarize(y, classes=class_labels)
-        num_classes = len(class_labels)
+    colors = cm.get_cmap(palette, len(models))
 
-        # create a separate plot for each class
-        for class_idx, class_label in enumerate(class_labels):
-            for model_name, model in models.items():
-                # all models we made have this but just in case 
-                if hasattr(model, "predict_proba"):
-                    y_scores = model.predict_proba(X)[:, class_idx]
-                else:
-                    print('missing predict_proba method')
-                    return 
-                # get precision recall curve
-                precision, recall, _ = precision_recall_curve(y_binarized[:, class_idx], y_scores)
-                avg_precision = average_precision_score(y_binarized[:, class_idx], y_scores)
+    # create a separate plot for each class
+    for class_idx, class_label in enumerate(class_labels):
+        plt.figure(figsize=(6, 6))
+        for model_idx, (model_name, model) in enumerate(models.items()):
+            # all models we made have this but just in case 
+            if hasattr(model, "predict_proba"):
+                y_scores = model.predict_proba(X)[:, class_idx]
+            else:
+                print('missing predict_proba method')
+                return 
+            # get precision recall curve
+            precision, recall, _ = precision_recall_curve(y_binarized[:, class_idx], y_scores)
+            avg_precision = average_precision_score(y_binarized[:, class_idx], y_scores)
+            auc_pr = auc(recall, precision)
 
-                # plot the curve
-                plt.plot(recall, precision, marker='.', label=f'{model_name} (AP = {avg_precision:.2f})')
+            # plot the curve
+            plt.plot(recall, precision, marker='.', label=f'{model_name} (avg precision: {avg_precision:.2f}, AUC = {auc_pr:.2f}) ', color=colors(model_idx))
 
-    plt.xlabel('Recall')
-    plt.ylabel('Precision')
-    plt.title(f'Precision-Recall curve for {class_label}')
-    plt.legend()
+        plt.xlabel('Recall')
+        plt.ylabel('Precision')
+        plt.title(f'Precision-Recall curve for {numeric_label_dict[class_label]}')
+        plt.legend()
