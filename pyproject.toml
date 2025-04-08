@@ -9,7 +9,7 @@ description = "Tools for analyzing pursuit experiment data"
 authors = [{ name = "bigbrainmay", email = "bigbrainmay@gmail.com" }]
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = "==3.12.9"
+requires-python = ">3.12.9"
 dependencies = [
     "jupyterlab==4.3.5",
     "pathlib==1.0.1",
@@ -19,8 +19,8 @@ dependencies = [
     "matplotlib==3.10.0",
     "pyarrow==19.0.1",
     "seaborn==0.13.2",
-    "matplotlib==3.10.0"
-    "scikit-learn==1.6.1"
+    "matplotlib==3.10.0",
+    "scikit-learn==1.6.1",
     "xgboost==3.0.0"
 ]
 
