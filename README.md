@@ -26,7 +26,7 @@ cd path/to/repo
 6. Install dependencies from pyprojet.toml:
 ```bash
 
-pip install .
+pip install -e . 
 
 ```
 
