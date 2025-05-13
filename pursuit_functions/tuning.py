@@ -1,3 +1,7 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
 # drop NA vals 
 def drop_NA_vals(dataframe):
     cleaned_data = dataframe.dropna(subset=['ratPos_1', 'ratPos_2', 'laserPos_1', 'laserPos_2'])
@@ -5,7 +9,7 @@ def drop_NA_vals(dataframe):
 
 #get all coordinate values below 99th percentile and normalize points 
 
-def normalize_points(dataframe, rat_x, rat_y, laser_x, laser_y):
+def normalize_points(dataframe, rat_x="ratPos_1", rat_y="ratPos_2", laser_x="laserPos_1", laser_y="laserPos_2"):
 
     normalized_data = []
     
@@ -52,19 +56,23 @@ def normalize_points(dataframe, rat_x, rat_y, laser_x, laser_y):
     return normalized_df
 
 #boundary approach: find center of arena and radius to find boundaries for all normalized data points
-def circle_fit_bounds(dataframe, x_norm, y_norm, radius_percentile=95):
+#find the mean center and overall radius of the arena for all normalized data points
+#you can specify the percentile value to be considered for the overall radius; default is 95th percentile
+#calculates the individual center point for each session
+
+def fit_circle_bounds(dataframe, x_norm="x_normalized", y_norm="y_normalized", radius_percentile=95):
     
     results = []
 
     all_x_vals = dataframe[x_norm].values.astype("float64")
     all_y_vals = dataframe[y_norm].values.astype("float64")
 
-    overall_center_x = np.mean(all_x_vals)
-    overall_center_y = np.mean(all_y_vals)
+    avg_center_x = np.mean(all_x_vals)
+    avg_center_y = np.mean(all_y_vals)
 
-    overall_distances = np.sqrt((all_x_vals - overall_center_x)**2 + (all_y_vals - overall_center_y)**2)
+    dist_to_avg_center = np.sqrt((all_x_vals - avg_center_x)**2 + (all_y_vals - avg_center_y)**2)
 
-    overall_radius = np.percentile(overall_distances, radius_percentile)
+    overall_radius = np.percentile(dist_to_avg_center, radius_percentile)
 
     for sessFile in dataframe["sessFile"].unique():
         session = dataframe[dataframe["sessFile"] == sessFile]
@@ -94,12 +102,12 @@ def circle_fit_bounds(dataframe, x_norm, y_norm, radius_percentile=95):
         })
 
     
-    center_radius_vals = pd.DataFrame(results)
+    center_boundary_vals = pd.DataFrame(results)
 
-    return center_radius_vals, overall_radius
+    return center_boundary_vals, overall_radius
 
-#find circle boundary points
-def circ_bounds(dataframe, center_x, center_y, radius):
+#find circumference points for plotting
+def circumference(dataframe, center_x="center_x", center_y="center_y", radius="radius"):
     
     results = []
 
@@ -124,13 +132,38 @@ def circ_bounds(dataframe, center_x, center_y, radius):
             "radius": r
         })
     
-    session_bound_radius_vals = pd.DataFrame(results)
+    session_circumference_points = pd.DataFrame(results)
 
 
-    return session_bound_radius_vals
+    return session_circumference_points
+
+#plot normalized concatenated laser and rat paths with center point and boundary
+
+def plot_arena_bounds(normalized_df, circle_boundaries_df, circumference_df):
+
+    for sessFile in normalized_df["sessFile"].unique():
+        plt.figure(figsize=(6,6))
+
+        #plot normalized trajectory
+        subset_sessFile = normalized_df[normalized_df["sessFile"] == sessFile]
+        plt.plot(subset_sessFile["x_normalized"], subset_sessFile["y_normalized"], color='purple', label=f'Session {sessFile}')
+        
+        #plot the center point
+        subset_center = circle_boundaries_df[circle_boundaries_df["sessFile"] == sessFile]
+        plt.scatter(subset_center["center_x"], subset_center["center_y"], color='black', zorder=5)
+
+        #plot the boundary circle
+        subset_bounds = circumference_df[circumference_df["sessFile"] == sessFile]
+        plt.plot(subset_bounds["x_bounds"].iloc[0], subset_bounds["y_bounds"].iloc[0], 'b-', zorder=10, label='Circle Boundary')
+    
+        plt.axis('equal')
+        plt.title(f"Arena Bounds: {sessFile}")
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
 
 #normalize laser points and make a dataframe containing spike data using the normalized data mask
-def normalize_laser_points(dataframe, laser_x, laser_y):
+def norm_laser_get_spks(dataframe, laser_x="laserPos_1", laser_y="laserPos_2"):
 
     normalized_laser_data = []
 
@@ -172,13 +205,12 @@ def normalize_laser_points(dataframe, laser_x, laser_y):
         normalized_laser_data.append(combined_df)
 
     #make a giant dataframe by concatenating all the dataframes in the list        
-    laser_normalized_df = pd.concat(normalized_laser_data, ignore_index=True)
+    laser_spks_df = pd.concat(normalized_laser_data, ignore_index=True)
 
-    return laser_normalized_df
+    return laser_spks_df
 
-#find distance of normalized laser points to boundary
 
-def laser_bound_dist(laser_df, center_df, laser_x, laser_y, center_x, center_y, radius):
+def dist_to_bounds(laser_df, center_df, laser_x="laser_x_normalized", laser_y="laser_y_normalized", center_x="center_x", center_y="center_y", radius="radius"):
 
     session_df = [] 
 
@@ -203,8 +235,9 @@ def laser_bound_dist(laser_df, center_df, laser_x, laser_y, center_x, center_y, 
     combined_df = pd.concat(session_df, ignore_index=True)
     return combined_df
 
+
 #function for calculating bin edges from overall min and max bound_dist values
-def find_overall_bin_edges(dataframe, column, num_bins):
+def find_bin_edges(dataframe, column, num_bins):
     overall_min = dataframe[column].min()
     overall_max = dataframe[column].max()
 
