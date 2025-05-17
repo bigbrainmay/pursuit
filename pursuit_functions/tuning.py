@@ -171,32 +171,36 @@ def norm_laser_get_spks(dataframe, laser_x="laserPos_1", laser_y="laserPos_2"):
     
     for sessFile in dataframe["sessFile"].unique():
 
-        session = dataframe[dataframe["sessFile"] == sessFile]
-        laser_x_vals = session[laser_x].values.astype("float64")
-        laser_y_vals = session[laser_y].values.astype("float64")
+        session = dataframe[dataframe["sessFile"] == sessFile].copy()
+
+        laser_x_vals = session[laser_x].astype("float64")
+        laser_y_vals = session[laser_y].astype("float64")
    
         #identify 99th percentile x, y boundaries
         x_low, x_high = np.percentile(laser_x_vals, [0, 99])
         y_low, y_high = np.percentile(laser_y_vals, [0, 99])
 
         #filter the data so we only get the data under the 99th percentile
-        filter = (laser_x_vals >= x_low) & (laser_x_vals <= x_high) & (laser_y_vals >= y_low) & (laser_y_vals <= y_high)
-        x_filtered = laser_x_vals[filter]
-        y_filtered = laser_y_vals[filter]
+        filter = (
+            (laser_x_vals >= x_low) & (laser_x_vals <= x_high) & 
+            (laser_y_vals >= y_low) & (laser_y_vals <= y_high)
+        )
+
+        filtered_session = session[filter].copy()
 
         #normalize the points to the origin
-        x_normalized = x_filtered - x_low
-        y_normalized = y_filtered - y_low
+        x_normalized = filtered_session[laser_x].astype("float64") - float(x_low)
+        y_normalized = filtered_session[laser_y].astype("float64") - float(y_low)
 
         #make a dataframe containing normalized data
         normalized_df = pd.DataFrame({
             "sessFile": sessFile,
-            "laser_x_normalized": x_normalized,
-            "laser_y_normalized": y_normalized
+            "laser_x_normalized": x_normalized.values,
+            "laser_y_normalized": y_normalized.values
         })
 
         #make a dataframe containing spike data using the normalized data mask
-        spk_df = session.loc[filter, spk_columns].reset_index(drop=True)
+        spk_df = filtered_session[spk_columns].reset_index(drop=True)
 
         #make a combined dataframe
         combined_df = pd.concat([normalized_df.reset_index(drop=True), spk_df], axis=1)
