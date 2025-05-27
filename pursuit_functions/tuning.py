@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 # drop NA vals 
 def drop_NA_vals(dataframe):
@@ -239,86 +240,59 @@ def dist_to_bounds(laser_df, center_df, laser_x="laser_x_normalized", laser_y="l
     combined_df = pd.concat(session_df, ignore_index=True)
     return combined_df
 
+#put raw spike counts and laser coords into bins calculated from the overall min and max bound_dist values
+#function takes laser_spks_bounds dataframes 
 
-#function for calculating bin edges from overall min and max bound_dist values
-def find_bin_edges(dataframe, column, num_bins):
-    overall_min = dataframe[column].min()
-    overall_max = dataframe[column].max()
+def bin_spikes_laser(dataframe, 
+                     spk_prefix="spkTable", 
+                     dist_col="bound_dist",
+                     num_bins=20, 
+                     bin_edges=None):
+    
+    
+    if bin_edges is None:
+        overall_min = dataframe[dist_col].min()
+        overall_max = dataframe[dist_col].max()
+        bin_edges = np.linspace(overall_min, overall_max, num_bins+1)
 
-    bin_edges = np.linspace(overall_min, overall_max, num_bins +1)
-    return bin_edges
+    intervals = pd.IntervalIndex.from_breaks(bin_edges)
+    bin_midpoints = (intervals.left + intervals.right) / 2
 
-#put raw spike counts into bins calculated from the overall min and max bound_dist values
-def bin_spike_data(dataframe, spk_prefix="spkTable", num_bins=20, bin_edges=None):
-
+    bin_mid_lookup = dict(zip(intervals, bin_midpoints))
+    
     rows = []
 
-    if bin_edges is None:
-        bin_edges = find_overall_bin_edges(dataframe, "bound_dist", num_bins)
-
     for sessFile in dataframe["sessFile"].unique():
-
+        
         session = dataframe[dataframe["sessFile"] == sessFile].copy()
 
-        session["bound_bin"] = pd.cut(session["bound_dist"], bins=bin_edges, include_lowest=True)
+        session["bound_bin"] = pd.cut(session[dist_col], bins=intervals, include_lowest=True)
+
+        laser_occupancy = session["bound_bin"].value_counts().reindex(intervals, fill_value=0)
 
         spk_cols = [col for col in session.columns if spk_prefix in col and not session[col].isna().all()]
 
-        for spk in spk_cols:
-            spk_by_bin = session.groupby("bound_bin")[spk].sum()
+        for neuron in spk_cols:
+            spks_by_bin = session.groupby("bound_bin", observed=False)[neuron].sum().reindex(intervals, fill_value=0)
 
-            bin_midpoints = pd.IntervalIndex.from_breaks(bin_edges).to_series().apply(
-                lambda interval: round((interval.left + interval.right) / 2, 2)
-                )
-
-            for bin_mid, spk_count in zip(bin_midpoints, spk_by_bin):
+            for i in intervals:
                 rows.append({
                     "sessFile": sessFile,
-                    "neuron": spk,
-                    "spike_count": spk_count,
-                    "bin_midpoint": bin_mid        
+                    "neuron": neuron,
+                    "bin_midpoint": round(bin_mid_lookup[i], 2),
+                    "spike_count": int(spks_by_bin[i]),
+                    "laser_occupancy": int(laser_occupancy[i])
                 })
 
-    binned_spks_df = pd.DataFrame(rows)
-    return binned_spks_df
-
-#put laser coordinates into bins calculated from the overall min and max bound_dist values
-def bin_laser_data(dataframe, laser_x, laser_y, num_bins=20, bin_edges=None):
-
-    rows = []
-
-    if bin_edges is None:
-        bin_edges = find_overall_bin_edges(dataframe, "bound_dist", num_bins)
-
-    for sessFile in dataframe["sessFile"].unique():
-
-        session = dataframe[dataframe["sessFile"] == sessFile].copy()
-
-        session["bound_bin"] = pd.cut(session["bound_dist"], bins=bin_edges, include_lowest=True)
-
-        coords_by_bin = session.groupby("bound_bin").size()
-
-        for bin_interval, laser_count in coords_by_bin.items():
-            bin_mid = round((bin_interval.left + bin_interval.right) / 2, 2)
-            
-            rows.append({
-                    "sessFile": sessFile,
-                    "laser_occupancy": laser_count,
-                    "bin_midpoint": bin_mid
-                })
-
-    binned_laser_df = pd.DataFrame(rows)
-    return binned_laser_df
+    return pd.DataFrame(rows)
 
 #normalize spike counts by laser occupancy using bins calculated from the overall min and max bound_dist values 
 
-def make_tuning_curve(spike_df, laser_df):
+def calculate_tuning(laser_spikes_binned_df):
 
-    merged_df = pd.merge(spike_df, laser_df, on=["sessFile", "bin_midpoint"], how="left")
+    laser_spikes_binned_df["tuning"] = laser_spikes_binned_df["spike_count"] / laser_spikes_binned_df["laser_occupancy"]
 
-    merged_df["tuning"] = merged_df["spike_count"] / merged_df["laser_occupancy"]
-
-    return merged_df
+    return laser_spikes_binned_df
 
 #plotting function for tuning curves
 
@@ -365,7 +339,7 @@ def z_score_norm(dataframe):
     )
 
     return sessions
-        
+
 #pivot table and apply gaussian smoothing for plotting
 
 def pivot_smooth(dataframe, window_size=3, window_type='gaussian', std=1):
@@ -386,6 +360,16 @@ def pivot_smooth(dataframe, window_size=3, window_type='gaussian', std=1):
     
     return smoothed_df
 
+#peak sort the neurons
+
+def peak_sort(smoothed_df):
+
+    peak_bin = smoothed_df.idxmax(axis=1)
+
+    ordered_index = peak_bin.sort_values().index
+
+    return smoothed_df.loc[ordered_index]
+
 #plot heatmap for z-scored data
 
 def heatmap(dataframe):
@@ -405,6 +389,9 @@ def heatmap(dataframe):
     plt.xlabel("Boundary Distance (bin midpoint)")
     plt.ylabel("Neurons")
     plt.show()
+
+
+
 
 
 #count number of neurons by sessFile and region dataframe
