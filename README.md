@@ -30,11 +30,3 @@ pip install -e .
 
 ```
 
-...
-
-
-# TODOs
-
-- [ ] Figure out what analyses we want to do
-- [ ] Figure out subset of files we should be working with
-- [ ] Do the analyses
