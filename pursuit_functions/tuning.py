@@ -408,7 +408,7 @@ def count_neurons(dataframe, spk_prefix="spkTable"):
         
         # Identify spkTable columns that are not entirely NaN for this session.
         spk_cols = [col for col in session.columns 
-                    if col.startswith(spk_prefix) and not sess_df[col].isna().all()
+                    if col.startswith(spk_prefix) and not session[col].isna().all()
         ]
         
         # Store the count for this session.
