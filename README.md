@@ -23,7 +23,7 @@ conda activate myenv
 cd path/to/repo
 
 ```
-6. Install dependencies from pyprojet.toml:
+6. Install dependencies from pyproject.toml:
 ```bash
 
 pip install -e . 
