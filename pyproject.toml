@@ -23,7 +23,8 @@ dependencies = [
     "scikit-learn==1.6.1",
     "xgboost==3.0.0",
     "tqdm==4.67.1",
-    "polars==1.33.0"
+    "polars==1.33.0",
+    "numba==0.61.2"
 ]
 
 [project.urls]
