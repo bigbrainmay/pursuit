@@ -7,7 +7,7 @@
 3. Create Conda environment:
 ```bash
 
-conda create --name <my-env> python=3.12.9
+conda create --name <my-env> python=3.13.2
 conda activate <my-env>
 
 ```
