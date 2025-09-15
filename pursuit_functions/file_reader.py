@@ -5,9 +5,9 @@ import numpy as np
 import matplotlib as plt
 
 # load region files 
-def load_region_files(data_dir: Path, suffix: str):
+def load_region_files(data_dir: Path, prefix: str):
     region_mats = {}
-    for file in data_dir.glob(f"*{suffix}"):
+    for file in data_dir.glob(f"{prefix}*.mat"):
         print(f"Loading: {file}")
         mat_data = sio.loadmat(file, spmatrix=False, squeeze_me=True)
 
@@ -18,18 +18,23 @@ def load_region_files(data_dir: Path, suffix: str):
 
         struct_name = file.stem
         region_mats[struct_name] = struct_dict
-
+        
     return region_mats
 
+
 #load pursuit files
-def load_session_files (data_dir: Path, suffix: str = 'pursuitRoot.mat', ignore_keys=None):
+def load_session_files (data_dir: Path, suffix: str = 'pursuitRoot.mat', ignore_keys=None, include_files: list[str] = None):
     if ignore_keys is None:
-        ignore_keys = ['cells', 'spkTimes', 'Events']
+        ignore_keys = ['ind', 'cells', 'spkTimes', 'Events']
         
     pursuit_matrices = {}
 
-
+    include_files = include_files or []
     for file in data_dir.glob(f"*{suffix}"):
+        if file.name not in include_files:
+            print(f"Skipping: {file}")
+            continue
+
         print(f"Loading: {file}")
         try:
             mat_data = sio.loadmat(file, spmatrix=False, squeeze_me=False)
