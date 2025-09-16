@@ -95,3 +95,36 @@ def build_region_df(region_df, session_dfs):
 
     big_df = pd.concat(dfs, axis=0)
     return big_df
+
+#count neurons to verify that we have the right number of session, spkTable column combos in the region df
+def count_neurons(region_df):
+    grand_total = 0
+    groups = region_df.groupby("sessFile")
+    
+    for sessFile, group in groups:
+        spk_cols = [col for col in group.columns if col.startswith("spkTable")]
+        spk_cols = [col for col in spk_cols if group[col].notna().any()]
+        spk_count = len(spk_cols)
+        print(f"{sessFile}: {spk_count} spkTable columns")
+        grand_total += spk_count
+    
+    print(f"\nGrand total: {grand_total} (session, column) combos")
+
+#save files to parquet
+def save_to_parquet(df, filename: str = "output") -> None:
+
+    dtype_map = {
+        "time": "float64",
+        "sessIdx": "int32",
+        "sessFile": "category",
+        "block": "category",
+    }
+
+    dtype_map.update({col: "Int16" for col in df.columns if col.startswith("spkTable")})
+
+    for col in df.columns:
+        if col not in dtype_map and df[col].dtype.kind in ("f", "i"):
+            dtype_map[col] = "float64"
+
+    df = df.astype(dtype_map)
+    df.to_parquet(f"{filename}.parquet", engine="pyarrow", compression="snappy")

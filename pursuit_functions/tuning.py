@@ -20,7 +20,7 @@ def normalize_points(dataframe, rat_x="ratPos_1", rat_y="ratPos_2", laser_x="las
     for sessFile in dataframe["sessFile"].unique():
         session = dataframe[dataframe["sessFile"] == sessFile].dropna(subset=[rat_x, rat_y, laser_x, laser_y]).copy()
 
-        region = dataframe['region'][0]
+        #region = dataframe['region'][0]
 
         rat_x_vals = session[rat_x].values.astype("float64")
         rat_y_vals = session[rat_y].values.astype("float64")
@@ -47,7 +47,7 @@ def normalize_points(dataframe, rat_x="ratPos_1", rat_y="ratPos_2", laser_x="las
         for xn, yn in zip(x_normalized, y_normalized):
             normalized_data.append({
                 "sessFile": sessFile,
-                "region": region,
+                #"region": region,
                 "x_normalized": xn,
                 "y_normalized": yn,
                 "x_low": x_low,
@@ -80,7 +80,7 @@ def fit_circle_bounds(dataframe, x_norm="x_normalized", y_norm="y_normalized", r
 
     for sessFile in dataframe["sessFile"].unique():
         session = dataframe[dataframe["sessFile"] == sessFile]
-        region = dataframe['region'][0]
+        #region = dataframe['region'][0]
 
         session_x_vals = session[x_norm].values.astype("float64")
         session_y_vals = session[y_norm].values.astype("float64")
@@ -95,7 +95,7 @@ def fit_circle_bounds(dataframe, x_norm="x_normalized", y_norm="y_normalized", r
 
         results.append({
             "sessFile": sessFile,
-            "region": region,
+            #"region": region,
             "center_x": center_x,
             "center_y": center_y,
             "x_min": x_min,
@@ -181,11 +181,10 @@ def drop_NA_vals(dataframe):
 
 def normalize_time(dataframe):
     df = dataframe.copy()
-    df["time"] = df["time"].astype(float)
-    df["relative_time"] = df.groupby("sessFile")["time"].transform(lambda x: x - x.min())
-    df["norm_sec"] = df["relative_time"].astype(int)
+    df["rel_time"] = df.groupby("sessFile")["time"].transform(lambda x: x - x.min())
+    df["norm_sec"] = df["rel_time"].astype(int)
     df["norm_min"] = df["norm_sec"] // 60
-
+    
     return df
 
 
@@ -225,7 +224,7 @@ def epoch_laser_spks(dataframe, laser_x="laserPos_1", laser_y="laserPos_2"):
 
     spk_columns = [col for col in dataframe.columns if "spkTable" in col]
 
-    time_column = [col for col in dataframe.columns if "relative_time" in col.lower()]
+    time_column = [col for col in dataframe.columns if "rel_time" in col.lower()]
     
     for sessFile in dataframe["sessFile"].unique():
 
@@ -307,7 +306,7 @@ def pull_epochs(dataframe,
         #function for grabbing sessFile, laser x, laser y, and spk columns for each epoch
         def build_epoch_df(epoch):
             return pd.concat([
-                epoch[["sessFile", "laser_x_normalized", "laser_y_normalized", "relative_time"]].reset_index(drop=True),
+                epoch[["sessFile", "laser_x_normalized", "laser_y_normalized", "rel_time"]].reset_index(drop=True),
                 epoch[spk_cols].reset_index(drop=True)
             ], axis=1)
 
@@ -363,15 +362,16 @@ def make_shift_idx(rel_time, num_shifts=1000):
     return shift_points[:num_shifts].tolist()
 
 #bootstrapping functions: calculate tuning and get spear correlation for a shift
-def process_session(epoch_df1, epoch_df2, center_df, sessFile, spk_cols, num_shifts, rel_time_col="relative_time"):
+def process_session(epoch_df1, epoch_df2, center_df, sessFile, spk_cols, num_shifts, rel_time_col="rel_time"):
         
     all_results = []
+    valid_spk_cols = []
+    for col in spk_cols:
+        all_nulls_1 = epoch_df1[col].isna().all() or epoch_df1[col].sum() == 0
+        all_nulls_2 = epoch_df2[col].isna().all() or epoch_df2[col].sum() == 0
 
-    valid_spk_cols = [
-        col for col in spk_cols
-        if not (epoch_df1[col].isna().all() or epoch_df1[col].sum() == 0) and
-            not (epoch_df2[col].isna().all() or epoch_df2[col].sum() == 0)
-        ]
+        if not all_nulls_1 and not all_nulls_2:
+            valid_spk_cols.append(col)
 
     # calculate distance to bounds
     dist1 = dist_to_bounds(epoch_df1, center_df)["bound_dist"].values
@@ -426,7 +426,7 @@ def process_session(epoch_df1, epoch_df2, center_df, sessFile, spk_cols, num_shi
     return all_results
 
 #bootstrapping functions: do all shifts and calculate tuning
-def bootstrap_all_sessions(epoch_df1, epoch_df2, center_df, spk_prefix="spkTable", rel_time_col="relative_time", num_shifts=1000):
+def bootstrap_all_sessions(epoch_df1, epoch_df2, center_df, spk_prefix="spkTable", rel_time_col="rel_time", num_shifts=1000):
     spk_cols = [col for col in epoch_df1.columns if spk_prefix in col]
     sessions = epoch_df1["sessFile"].unique()
 
