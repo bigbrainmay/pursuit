@@ -367,8 +367,8 @@ def process_session(epoch_df1, epoch_df2, center_df, sessFile, spk_cols, num_shi
     all_results = []
     valid_spk_cols = []
     for col in spk_cols:
-        all_nulls_1 = epoch_df1[col].isna().all() or epoch_df1[col].sum() == 0
-        all_nulls_2 = epoch_df2[col].isna().all() or epoch_df2[col].sum() == 0
+        all_nulls_1 = epoch_df1[col].isna().all() 
+        all_nulls_2 = epoch_df2[col].isna().all() 
 
         if not all_nulls_1 and not all_nulls_2:
             valid_spk_cols.append(col)
@@ -516,7 +516,7 @@ def get_significant_cells(df, percentile=95):
 #plot heatmap tuning curves for significant cells
 # returns df_sorted (peak sorted data ready to plot in heatmap) and df_binned (bins, spk_ct, laser_occ, tuning)
 def sig_cells_heatmap(raw_data, center_df, sig_cells_list, percentile=95,
-                                 smoothing_window=3, smoothing_std=1, plot_title=None):
+                                 smoothing_window=3, smoothing_std=1, exclude_r=0, plot_title=None):
     
     df_sig_cells = pd.DataFrame(sig_cells_list, columns=["sessFile", "neuron"])
 
@@ -524,10 +524,10 @@ def sig_cells_heatmap(raw_data, center_df, sig_cells_list, percentile=95,
     df_laser_spks = norm_laser_get_spks(raw_data)
 
    
-    df_bounds = dist_to_bounds(df_laser_spks, center_df)
+    df_bounds = dist_to_bounds(df_laser_spks, center_df, exclude_r=exclude_r)
 
     
-    df_binned = bin_spikes_laser(df_bounds)
+    df_binned = bin_spikes_laser(df_bounds, center_df)
 
     
     df_tuning = calculate_tuning(df_binned)
@@ -536,10 +536,11 @@ def sig_cells_heatmap(raw_data, center_df, sig_cells_list, percentile=95,
     df_tuning_filtered = df_tuning.merge(df_sig_cells, on=["sessFile", "neuron"])
 
    
-    df_z = z_score_norm(df_tuning_filtered)
-
+    #df_z = z_score_norm(df_tuning_filtered)
+    df_max_norm = max_norm_score(df_tuning_filtered)
    
-    df_smoothed = pivot_smooth(df_z, window_size=smoothing_window, std=smoothing_std)
+    #df_smoothed = pivot_smooth(df_z, window_size=smoothing_window, std=smoothing_std)
+    df_smoothed = pivot_smooth(df_max_norm, window_size=smoothing_window, std=smoothing_std)
 
    
     df_sorted = peak_sort(df_smoothed)
@@ -547,8 +548,9 @@ def sig_cells_heatmap(raw_data, center_df, sig_cells_list, percentile=95,
    
     plt.figure(figsize=(12, 8))
     sns.heatmap(df_sorted, cmap="viridis", annot=False, fmt=".2f", yticklabels=False)
-    plt.title(plot_title or f"Z-scored Spike Activity (> {percentile}th percentile)")
-    plt.xlabel("Boundary Distance (bin midpoint)")
+    plt.title(plot_title or f"Max-scored Spike Activity (> {percentile}th percentile)")
+    #plt.xlabel("Boundary Distance (bin midpoint)")
+    plt.xlabel("Distance to Center (bin midpoints)")
     plt.ylabel("Neurons (peak sorted)")
     plt.xticks(rotation=45)
     plt.tight_layout()
@@ -557,6 +559,49 @@ def sig_cells_heatmap(raw_data, center_df, sig_cells_list, percentile=95,
     return df_sorted, df_binned  
 
 
+#plot individual significant cell tuning curves
+def plot_sig_tuning_curves(raw_data, center_df, sig_cells_list, percentile=95,
+                                 smoothing_window=3, smoothing_std=1, exclude_r=0, plot_title=None):
+    
+    df_sig_cells = pd.DataFrame(sig_cells_list, columns=["sessFile", "neuron"])
+
+   
+    df_laser_spks = norm_laser_get_spks(raw_data)
+
+   
+    df_bounds = dist_to_bounds(df_laser_spks, center_df, exclude_r=exclude_r)
+
+    
+    df_binned = bin_spikes_laser(df_bounds, center_df)
+
+    
+    df_tuning = calculate_tuning(df_binned)
+
+    
+    df_tuning_filtered = df_tuning.merge(df_sig_cells, on=["sessFile", "neuron"])
+
+
+    grouped = df_tuning_filtered.groupby(["sessFile", "neuron"])
+
+    for (sessFile, neuron), sub_df in grouped:
+        
+        pivoted = (sub_df.pivot(index="neuron", columns="bin_midpoint", values="tuning").fillna(0))
+
+        for neuron in pivoted.index:
+            plt.plot(pivoted.columns, pivoted.loc[neuron], marker='o', linestyle='-', label=f"{neuron}")
+
+        #plt.xlabel("Boundary Distance (bin midpoint)")
+        plt.xlabel("Distance to Center (bin midpoints)")
+        plt.ylabel("Tuning (spike count / laser occupancy)")
+        plt.title(f"Tuning Curve — {sessFile} / {neuron}")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
+
+
+
+
+#helper functions for calculating tuning below
 
 #normalize laser points and make a dataframe containing spike data using the normalized data mask
 def norm_laser_get_spks(dataframe, laser_x="laserPos_1", laser_y="laserPos_2"):
@@ -609,6 +654,214 @@ def norm_laser_get_spks(dataframe, laser_x="laserPos_1", laser_y="laserPos_2"):
 
     return laser_spks_df
 
+#finds laser x,y coordinates distance to boundary per session
+def dist_to_bounds(laser_df, center_df, laser_x="laser_x_normalized", laser_y="laser_y_normalized", center_x="center_x", center_y="center_y", radius="radius", exclude_r=0):
+
+    session_df = [] 
+    
+    for sessFile in laser_df["sessFile"].unique():
+        session = laser_df[laser_df["sessFile"] == sessFile].copy()
+
+        laser_x_val = session[laser_x].values.astype("float64")
+        laser_y_val = session[laser_y].values.astype("float64")
+
+        subset_center = center_df[center_df["sessFile"] == sessFile]
+
+        center_x_val = subset_center[center_x].iloc[0]
+        center_y_val = subset_center[center_y].iloc[0]
+        r = subset_center[radius].iloc[0]
+
+        session["center_dist"] = np.sqrt((laser_x_val - center_x_val)**2 + (laser_y_val - center_y_val)**2)
+
+        if exclude_r > 0:
+            session = session[session["center_dist"] >= exclude_r]
+
+        session["bound_dist"] = np.abs(session["center_dist"] - r)
+
+        session_df.append(session)
+
+    combined_df = pd.concat(session_df, ignore_index=True)
+    return combined_df
+
+#put raw spike counts and laser coords into bins calculated from the overall min and max bound_dist values
+#function takes laser_spks_bounds dataframes 
+
+def bin_spikes_laser(dist_df,
+                     center_df,
+                     spk_prefix="spkTable", 
+                     #bound_dist_col="bound_dist",
+                     radius="radius",
+                     center_dist_col="center_dist",
+                     num_bins=20, 
+                     bin_edges=None):
+    
+    
+    if bin_edges is None:
+        overall_min = dist_df[center_dist_col].min()
+        overall_max = center_df[radius].iloc[0]
+        bin_edges = np.linspace(overall_min, overall_max, num_bins+1)
+
+    intervals = pd.IntervalIndex.from_breaks(bin_edges)
+    bin_midpoints = (intervals.left + intervals.right) / 2
+
+    bin_mid_lookup = dict(zip(intervals, bin_midpoints))
+    
+    rows = []
+
+    for sessFile in dist_df["sessFile"].unique():
+        
+        session = dist_df[dist_df["sessFile"] == sessFile].copy()
+
+        #session["bound_bin"] = pd.cut(session[dist_col], bins=intervals, include_lowest=True)
+        session["center_bin"] = pd.cut(session[center_dist_col], bins=intervals, include_lowest=True)
+
+        #laser_occupancy = session["bound_bin"].value_counts().reindex(intervals, fill_value=0)
+        laser_occupancy = session["center_bin"].value_counts().reindex(intervals, fill_value=0)
+
+        spk_cols = [col for col in session.columns if spk_prefix in col and not session[col].isna().all()]
+
+        for neuron in spk_cols:
+            #spks_by_bin = session.groupby("bound_bin", observed=False)[neuron].sum().reindex(intervals, fill_value=0)
+            spks_by_bin = session.groupby("center_bin", observed=False)[neuron].sum().reindex(intervals, fill_value=0)
+
+            for i in intervals:
+                rows.append({
+                    "sessFile": sessFile,
+                    "neuron": neuron,
+                    "bin_midpoint": round(bin_mid_lookup[i], 2),
+                    "spike_count": int(spks_by_bin[i]),
+                    "laser_occupancy": int(laser_occupancy[i])
+                })
+
+    return pd.DataFrame(rows)
+
+#normalize spike counts by laser occupancy using bins calculated from the overall min and max bound_dist values 
+
+def calculate_tuning(laser_spikes_binned_df):
+
+    laser_spikes_binned_df["tuning"] = laser_spikes_binned_df["spike_count"] / laser_spikes_binned_df["laser_occupancy"]
+
+    return laser_spikes_binned_df
+
+#plotting function for tuning curves
+
+def plot_tuning_curves(dataframe):
+    
+    plt.figure(figsize=(12,8))
+
+    for sessFile in dataframe["sessFile"].unique():
+
+        session = dataframe[dataframe["sessFile"] == sessFile]
+        
+        pivoted = (session.pivot(index="neuron", columns="bin_midpoint", values="tuning").fillna(0))
+
+        for neuron in pivoted.index:
+            plt.plot(pivoted.columns, pivoted.loc[neuron], marker='o', linestyle='-', label=f"{neuron}")
+
+    plt.xlabel("Boundary Distance (bin midpoint)")
+    plt.ylabel("Tuning (spike count / laser occupancy)")
+    plt.title(f"All Neuron Tuning Curves")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+#max norm binned normalized data
+def max_norm_score(dataframe):
+
+    sessions = dataframe.copy()
+
+    def max_norm(x):
+        x_max = x.max()
+        x_norm = x / x_max
+        return x_norm
+    
+    sessions["max_norm_score"] = (
+        sessions.groupby(["sessFile", "neuron"])["tuning"].transform(max_norm)
+    )
+
+    return sessions
+
+#z-score binned normalized data
+
+def z_score_norm(dataframe):
+    
+    sessions = dataframe.copy()
+        
+    def norm_z(x):
+        std = x.std()
+        mean = x.mean()
+        z = (x - mean) / std if std > 0 else x*0
+
+        z_min, z_max = z.min(), z.max()
+        if z_max > z_min:
+            return (z - z_min) / (z_max - z_min)
+        else:
+            return z * 0
+
+        
+    sessions["z_score"] = (
+        sessions.groupby(["sessFile", "neuron"])["tuning"].transform(norm_z)
+    )
+
+    return sessions
+
+#pivot table and apply gaussian smoothing for plotting
+
+def pivot_smooth(dataframe, window_size=3, window_type='gaussian', std=1):
+
+    pivoted_df = dataframe.pivot_table(
+        index=["sessFile", "neuron"], 
+        columns="bin_midpoint", 
+        values="max_norm_score"
+        #values="z_score"
+        ).fillna(0)
+
+    smoothed_df = pivoted_df.apply(
+        lambda row: row.rolling(
+            window=window_size, 
+            win_type=window_type, 
+            center=True).mean(std=std), 
+            axis=1
+        ).fillna(0)
+    
+    return smoothed_df
+
+#peak sort the neurons
+
+def peak_sort(smoothed_df):
+
+    peak_bin = smoothed_df.idxmax(axis=1)
+
+    ordered_index = peak_bin.sort_values().index
+
+    return smoothed_df.loc[ordered_index]
+
+#plot heatmap for z-scored data
+
+def heatmap(dataframe):
+
+    plt.figure(figsize=(12,8))
+
+    heatmap = sns.heatmap(dataframe, cmap="viridis", annot=False, fmt=".2f", yticklabels=False)
+
+    x_labels = heatmap.get_xticklabels()
+
+    rounded_labels = [f"{float(label.get_text()):.2f}" if label.get_text() != "" else "" for label in x_labels]
+
+    heatmap.set_xticklabels(rounded_labels, rotation=45, ha="right")
+
+
+    plt.title(f"Max-scored Spike Activity by Boundary Distance")
+    plt.xlabel("Boundary Distance (bin midpoint)")
+    plt.ylabel("Neurons")
+    plt.show()
+
+
+
+
+
+#for sanity checks
+
 #plot at total laser occupancy per bin per session (and save to pdf bc there's a lot of plots)
 def occ_dist_to_pdf(df, output_path = "RSC_sessions_laser_occ.pdf"):
     
@@ -657,231 +910,8 @@ def occ_dist_to_pdf(df, output_path = "RSC_sessions_laser_occ.pdf"):
             pdf.savefig(fig)
             plt.close(fig)
 
-#plot individual significant cell tuning curves
-def plot_sig_tuning_curves(raw_data, center_df, sig_cells_list, percentile=95,
-                                 smoothing_window=3, smoothing_std=1, plot_title=None):
-    
-    df_sig_cells = pd.DataFrame(sig_cells_list, columns=["sessFile", "neuron"])
 
-   
-    df_laser_spks = norm_laser_get_spks(raw_data)
-
-   
-    df_bounds = dist_to_bounds(df_laser_spks, center_df)
-
-    
-    df_binned = bin_spikes_laser(df_bounds)
-
-    
-    df_tuning = calculate_tuning(df_binned)
-
-    
-    df_tuning_filtered = df_tuning.merge(df_sig_cells, on=["sessFile", "neuron"])
-
-
-    grouped = df_tuning_filtered.groupby(["sessFile", "neuron"])
-
-    for (sessFile, neuron), sub_df in grouped:
-        
-        pivoted = (sub_df.pivot(index="neuron", columns="bin_midpoint", values="tuning").fillna(0))
-
-        for neuron in pivoted.index:
-            plt.plot(pivoted.columns, pivoted.loc[neuron], marker='o', linestyle='-', label=f"{neuron}")
-
-        plt.xlabel("Boundary Distance (bin midpoint)")
-        plt.ylabel("Tuning (spike count / laser occupancy)")
-        plt.title(f"Tuning Curve — {sessFile} / {neuron}")
-        plt.grid(True)
-        plt.tight_layout()
-        plt.show()
-
-
-
-
-#helper functions below
-
-
-def dist_to_bounds(laser_df, center_df, laser_x="laser_x_normalized", laser_y="laser_y_normalized", center_x="center_x", center_y="center_y", radius="radius"):
-
-    session_df = [] 
-
-    for sessFile in laser_df["sessFile"].unique():
-        session = laser_df[laser_df["sessFile"] == sessFile].copy()
-
-        laser_x_val = session[laser_x].values.astype("float64")
-        laser_y_val = session[laser_y].values.astype("float64")
-
-        subset_center = center_df[center_df["sessFile"] == sessFile]
-
-        center_x_val = subset_center[center_x].iloc[0]
-        center_y_val = subset_center[center_y].iloc[0]
-        r = subset_center[radius].iloc[0]
-
-        session["center_dist"] = np.sqrt((laser_x_val - center_x_val)**2 + (laser_y_val - center_y_val)**2)
-
-        session["bound_dist"] = np.abs(session["center_dist"] - r)
-
-        session_df.append(session)
-
-    combined_df = pd.concat(session_df, ignore_index=True)
-    return combined_df
-
-#put raw spike counts and laser coords into bins calculated from the overall min and max bound_dist values
-#function takes laser_spks_bounds dataframes 
-
-def bin_spikes_laser(dataframe, 
-                     spk_prefix="spkTable", 
-                     dist_col="bound_dist",
-                     num_bins=20, 
-                     bin_edges=None):
-    
-    
-    if bin_edges is None:
-        overall_min = dataframe[dist_col].min()
-        overall_max = dataframe[dist_col].max()
-        bin_edges = np.linspace(overall_min, overall_max, num_bins+1)
-
-    intervals = pd.IntervalIndex.from_breaks(bin_edges)
-    bin_midpoints = (intervals.left + intervals.right) / 2
-
-    bin_mid_lookup = dict(zip(intervals, bin_midpoints))
-    
-    rows = []
-
-    for sessFile in dataframe["sessFile"].unique():
-        
-        session = dataframe[dataframe["sessFile"] == sessFile].copy()
-
-        session["bound_bin"] = pd.cut(session[dist_col], bins=intervals, include_lowest=True)
-
-        laser_occupancy = session["bound_bin"].value_counts().reindex(intervals, fill_value=0)
-
-        spk_cols = [col for col in session.columns if spk_prefix in col and not session[col].isna().all()]
-
-        for neuron in spk_cols:
-            spks_by_bin = session.groupby("bound_bin", observed=False)[neuron].sum().reindex(intervals, fill_value=0)
-
-            for i in intervals:
-                rows.append({
-                    "sessFile": sessFile,
-                    "neuron": neuron,
-                    "bin_midpoint": round(bin_mid_lookup[i], 2),
-                    "spike_count": int(spks_by_bin[i]),
-                    "laser_occupancy": int(laser_occupancy[i])
-                })
-
-    return pd.DataFrame(rows)
-
-#normalize spike counts by laser occupancy using bins calculated from the overall min and max bound_dist values 
-
-def calculate_tuning(laser_spikes_binned_df):
-
-    laser_spikes_binned_df["tuning"] = laser_spikes_binned_df["spike_count"] / laser_spikes_binned_df["laser_occupancy"]
-
-    return laser_spikes_binned_df
-
-#plotting function for tuning curves
-
-def plot_tuning_curves(dataframe):
-    
-    plt.figure(figsize=(12,8))
-
-    for sessFile in dataframe["sessFile"].unique():
-
-        session = dataframe[dataframe["sessFile"] == sessFile]
-        
-        pivoted = (session.pivot(index="neuron", columns="bin_midpoint", values="tuning").fillna(0))
-
-        for neuron in pivoted.index:
-            plt.plot(pivoted.columns, pivoted.loc[neuron], marker='o', linestyle='-', label=f"{neuron}")
-
-    plt.xlabel("Boundary Distance (bin midpoint)")
-    plt.ylabel("Tuning (spike count / laser occupancy)")
-    plt.title(f"All Neuron Tuning Curves")
-    plt.grid(True)
-    plt.tight_layout()
-    plt.show()
-
-#z-score binned normalized data
-
-def z_score_norm(dataframe):
-    
-    sessions = dataframe.copy()
-        
-    def norm_z(x):
-        std = x.std()
-        mean = x.mean()
-        z = (x - mean) / std if std > 0 else x*0
-
-        z_min, z_max = z.min(), z.max()
-        if z_max > z_min:
-            return (z - z_min) / (z_max - z_min)
-        else:
-            return z * 0
-
-        
-    sessions["z_score"] = (
-        sessions.groupby(["sessFile", "neuron"])["tuning"].transform(norm_z)
-    )
-
-    return sessions
-
-#pivot table and apply gaussian smoothing for plotting
-
-def pivot_smooth(dataframe, window_size=3, window_type='gaussian', std=1):
-
-    pivoted_df = dataframe.pivot_table(
-        index=["sessFile", "neuron"], 
-        columns="bin_midpoint", 
-        values="z_score"
-        ).fillna(0)
-
-    smoothed_df = pivoted_df.apply(
-        lambda row: row.rolling(
-            window=window_size, 
-            win_type=window_type, 
-            center=True).mean(std=std), 
-            axis=1
-        ).fillna(0)
-    
-    return smoothed_df
-
-#peak sort the neurons
-
-def peak_sort(smoothed_df):
-
-    peak_bin = smoothed_df.idxmax(axis=1)
-
-    ordered_index = peak_bin.sort_values().index
-
-    return smoothed_df.loc[ordered_index]
-
-#plot heatmap for z-scored data
-
-def heatmap(dataframe):
-
-    plt.figure(figsize=(12,8))
-
-    heatmap = sns.heatmap(dataframe, cmap="viridis", annot=False, fmt=".2f", yticklabels=False)
-
-    x_labels = heatmap.get_xticklabels()
-
-    rounded_labels = [f"{float(label.get_text()):.2f}" if label.get_text() != "" else "" for label in x_labels]
-
-    heatmap.set_xticklabels(rounded_labels, rotation=45, ha="right")
-
-
-    plt.title(f"Z-scored Spike Activity by Boundary Distance")
-    plt.xlabel("Boundary Distance (bin midpoint)")
-    plt.ylabel("Neurons")
-    plt.show()
-
-
-
-
-
-#count number of neurons by sessFile and region dataframe
-
+#count neurons in dataframes pre-bootstrapping/tuning
 def count_neurons(dataframe, spk_prefix="spkTable"):
 
     # Create an empty dictionary to hold the counts for each session.
@@ -904,3 +934,112 @@ def count_neurons(dataframe, spk_prefix="spkTable"):
     total_neurons = sum(session_neuron_counts.values())
 
     return session_neuron_counts, total_neurons
+
+#count neurons in dataframe post-bootstrapping/tuning
+def count_bootstrap_neurons(dataframe, spk_prefix="spkTable"):
+
+    group = dataframe.groupby(["sessFile", "neuron"])
+
+    total_neurons = group.size()
+
+    return total_neurons
+
+#count the cell count differences between each region's epoch
+def find_diff_cells(list1, list2):
+    first_second = set(list1)
+    odd_even = set(list2)
+
+    union = first_second | odd_even
+    first_second_only = first_second - odd_even
+    odd_even_only = odd_even - first_second
+
+    return len(union), len(first_second_only), len(odd_even_only)
+
+#find the tuning value mean for each distance bin. takes the df_sorted df from the heatmap function
+def bin_means(df):
+    float_cols = [col for col in df.columns if isinstance(col, float)]
+    return df[float_cols].mean(axis=0)
+
+#plot the bin means after you find them. takes an array you get from def bin means.
+def plot_bin_means(means, title=None):
+    plt.plot(means.index, means.values, marker='o')
+    plt.xlabel("Bins")
+    plt.ylabel("Mean value")
+    plt.title(title)
+    plt.grid(True)
+    plt.show()
+
+#plot peaks by bin
+def plot_peaks_by_bin(df1, df2, title=str):
+
+    df1_bin_cols = [col for col in df1.columns if isinstance(col, float)]
+    df2_bin_cols = [col for col in df2.columns if isinstance(col, float)]
+
+    rebinned_df1 = (
+        df1[df1_bin_cols]
+        .groupby(np.arange(len(df1_bin_cols)) // 2, axis=1)
+        .sum()
+        )
+    
+    rebinned_df2 = (
+        df2[df2_bin_cols]
+        .groupby(np.arange(len(df2_bin_cols)) // 2, axis=1)
+        .sum()
+    )
+    
+    new_bin_names = [
+        np.mean(df1_bin_cols[i*2:(i+1)*2])
+        for i in range(rebinned_df1.shape[1])
+    ]
+
+    rebinned_df1.columns = new_bin_names
+    rebinned_df2.columns = new_bin_names
+
+    df1_peak_bins = rebinned_df1.idxmax(axis=1)
+    df2_peak_bins = rebinned_df2.idxmax(axis=1)
+
+    df1_peak_counts = df1_peak_bins.value_counts().sort_index()
+    df2_peak_counts = df2_peak_bins.value_counts().sort_index()
+
+    df1_peak_counts = df1_peak_counts.reindex(new_bin_names, fill_value=0)
+    df2_peak_counts = df2_peak_counts.reindex(new_bin_names, fill_value=0)
+
+    df1_peak_counts = df1_peak_counts / len(df1)
+    df2_peak_counts = df2_peak_counts / len(df2)
+
+
+    fig, ax = plt.subplots()
+    width=np.diff(sorted(new_bin_names)).mean()
+
+    ax.bar(df1_peak_counts.index, df1_peak_counts.values,
+           width=width, color="#8068A3", label="Peak bins (PPC)")
+    
+    ax.plot(df2_peak_counts.index, df2_peak_counts.values,
+            color="#8BA368", marker="o", label="Peak bins (RSC)")
+
+    ax.set_xlabel("Bin midpoint")
+    ax.set_ylabel("Proportion of Neuron Peaks/Bin")
+    ax.legend()
+    ax.set_title(title)
+    plt.show()
+
+    return df1_peak_counts, df2_peak_counts
+
+# find unique time entries
+def unique_time_entries(dataframe):
+    all_sessions = []
+
+    for sessFile in dataframe["sessFile"].unique():
+        session = dataframe[dataframe["sessFile"] == sessFile]
+        session_times = session["time"]
+
+        times_unique = session_times.astype("float64").nunique()
+        times_count = session_times.astype("float64").value_counts().to_dict()
+
+        all_sessions.append({
+            "sessFile": sessFile,
+            "times_unique": times_unique,
+            "unique_times_count": times_count
+        })
+
+    return pd.DataFrame(all_sessions)
