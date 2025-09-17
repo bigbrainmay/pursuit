@@ -598,6 +598,78 @@ def plot_sig_tuning_curves(raw_data, center_df, sig_cells_list, percentile=95,
         plt.tight_layout()
         plt.show()
 
+#plot mean tuning curve for significant cells
+def plot_mean_tuning_curve(raw_data, center_df, sig_cells_list, percentile=95,
+                           smoothing_window=3, smoothing_std=1, exclude_r=0, region=None):
+
+    df_laser_spks = norm_laser_get_spks(raw_data)
+
+    df_bounds = dist_to_bounds(df_laser_spks, center_df, exclude_r=exclude_r)
+    
+    
+    for sessFile, neuron in sig_cells_list:
+
+        raw_spks = df_bounds[df_bounds["sessFile"] == sessFile]
+        
+        n_chunks = 10
+        n_rows = len(raw_spks)
+
+        if n_rows < n_chunks:
+            print(f"Skipping {sessFile}-{neuron}: not enough spikes ({n_rows} rows)")
+            continue
+
+        chunk_size = n_rows // n_chunks
+        slices = [raw_spks.iloc[i:i + chunk_size] for i in range(n_chunks - 1)]
+        slices.append(raw_spks.iloc[(n_chunks - 1) * chunk_size:])
+
+        tuning_curves = []
+        bin_midpoints = None
+
+        for s in slices:
+
+            s_binned = bin_spikes_laser(s, center_df)
+            
+            if s_binned.empty:
+                continue
+
+            s_tuning = calculate_tuning(s_binned)
+
+            s_tuning_filtered = s_tuning[s_tuning["neuron"] == neuron]
+            
+            if s_tuning_filtered.empty:
+                continue
+
+            pivoted = s_tuning_filtered.pivot(index="neuron",
+                                              columns="bin_midpoint",
+                                              values="tuning").fillna(0)
+
+            if bin_midpoints is None:
+                bin_midpoints = pivoted.columns.values
+
+            tuning_curves.append(pivoted.loc[neuron].values)
+
+        if not tuning_curves or bin_midpoints is None:
+            print(f"Skipping {sessFile}-{neuron}: no valid slices")
+            continue
+
+        tuning_curves = np.vstack(tuning_curves)
+        mean_curve = tuning_curves.mean(axis=0)
+        sem_curve = tuning_curves.std(axis=0) / np.sqrt(tuning_curves.shape[0])
+
+
+
+        plt.plot(bin_midpoints, mean_curve, marker="o", linestyle="-")
+        plt.fill_between(bin_midpoints,
+                         mean_curve - sem_curve,
+                         mean_curve + sem_curve,
+                         alpha=0.2)
+
+        plt.xlabel("Distance to Center (bin midpoints)")
+        plt.ylabel("Tuning (spike count / laser occupancy)")
+        plt.title(f"{region} Mean Tuning Curve (with SEM) {sessFile}-{neuron}")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
 
 
 
@@ -699,6 +771,11 @@ def bin_spikes_laser(dist_df,
     if bin_edges is None:
         overall_min = dist_df[center_dist_col].min()
         overall_max = center_df[radius].iloc[0]
+
+        if pd.isna(overall_min) or pd.isna(overall_max) or overall_min >= overall_max:
+            return pd.DataFrame(
+            columns=["sessFile", "neuron", "bin_midpoint", "spike_count", "laser_occupancy"]
+            )
         bin_edges = np.linspace(overall_min, overall_max, num_bins+1)
 
     intervals = pd.IntervalIndex.from_breaks(bin_edges)
