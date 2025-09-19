@@ -1092,7 +1092,7 @@ def plot_peaks_by_bin(df1, df2, title=str):
            width=width, color="#8068A3", label="Peak bins (PPC)")
     
     ax.plot(df2_peak_counts.index, df2_peak_counts.values,
-            color="#8BA368", marker="o", label="Peak bins (RSC)")
+            color="blue", marker="o", label="Peak bins (RSC)")
 
     ax.set_xlabel("Bin midpoint")
     ax.set_ylabel("Proportion of Neuron Peaks/Bin")
